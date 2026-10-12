@@ -34,12 +34,58 @@ function renderBars(r) {
     bar.appendChild(fill);container.appendChild(bar);
   }
   container.setAttribute('aria-label',`保證金占總資金 ${fmt(r.margin/r.capital*100)}%，上限 ${compact(r.capPct)}%`);
+  const segments=[{name:'保證金',value:r.margin,kind:'margin'},
+    {name:'開倉費',value:r.openCost,kind:'fee'},
+    {name:'其餘資金',value:Math.max(0,r.capital-r.cashRequired),kind:'available'}];
+  $('funding-empty').hidden=true;
+  $('funding-bar').replaceChildren();$('funding-metrics').replaceChildren();
+  segments.forEach(segment=>{
+    const percent=segment.value/r.capital*100;
+    const bar=document.createElement('span');bar.className=`funding-segment ${segment.kind}`;
+    bar.style.width=`${percent}%`;$('funding-bar').appendChild(bar);
+    const item=document.createElement('div');item.className=`funding-item ${segment.kind}`;
+    const label=document.createElement('span');label.textContent=segment.name;
+    const amount=document.createElement('strong');amount.textContent=fmt(segment.value,segment.kind==='fee'?4:2)+' U';
+    const share=document.createElement('small');share.textContent=fmt(percent,2)+'%';
+    item.append(label,amount,share);$('funding-metrics').appendChild(item);
+  });
+  $('funding-bar').setAttribute('aria-label',segments.map(s=>`${s.name} ${fmt(s.value,4)} USDT，占 ${fmt(s.value/r.capital*100)}%`).join('；'));
+  $('funding-risk').textContent=`單筆虧損預算 ${compact(r.budget)} U；停損預估虧損 ${fmt(r.plannedLoss,4)} U（含成本），不與保證金重複加總。`;
+}
+function renderPriceAxis(rows,r) {
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('width','100%');svg.setAttribute('height','148');svg.setAttribute('aria-hidden','true');
+  const low=rows[rows.length-1].value,high=rows[0].value;
+  const position=value=>high>low?10+(value-low)/(high-low)*80:50;
+  const add=(tag,attrs,text)=>{
+    const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+    Object.entries(attrs).forEach(([key,value])=>el.setAttribute(key,String(value)));
+    if(text!==undefined) el.textContent=text;
+    svg.appendChild(el);return el;
+  };
+  for(let i=0;i<=4;i++) add('line',{x1:`${10+i*20}%`,x2:`${10+i*20}%`,y1:58,y2:120,class:'axis-grid'});
+  [[r.stopPrice,'stop'],[r.takePrice,'take']].forEach(([value,kind])=>
+    add('rect',{x:`${Math.min(position(value),position(r.entry))}%`,y:84,width:`${Math.abs(position(value)-position(r.entry))}%`,height:28,class:`axis-zone ${kind}`}));
+  add('line',{x1:'10%',x2:'90%',y1:98,y2:98,class:'axis-line'});
+  [...rows].reverse().forEach((row,i)=>{
+    const x=position(row.value),labelX=12.5+i*25;
+    add('text',{x:`${labelX}%`,y:25,'text-anchor':'middle',class:`axis-label ${row.kind}`},row.name);
+    add('line',{x1:`${labelX}%`,x2:`${x}%`,y1:36,y2:84,class:`axis-leader ${row.kind}`});
+    add('line',{x1:`${x}%`,x2:`${x}%`,y1:84,y2:112,class:`axis-marker ${row.kind}`});
+    add('circle',{cx:`${x}%`,cy:98,r:4,class:`axis-dot ${row.kind}`});
+  });
+  add('text',{x:'10%',y:140,'text-anchor':'start',class:'axis-end'},price(low));
+  add('text',{x:'90%',y:140,'text-anchor':'end',class:'axis-end'},price(high));
+  $('price-axis').replaceChildren(svg);
+  $('price-axis').setAttribute('aria-label',`價格由左至右遞增，等比例顯示。${rows.map(x=>`${x.name} ${price(x.value)} USDT`).join('，')}`);
+  $('map-empty').hidden=true;
 }
 function renderMap(r) {
   const rows=[{name:'停利',value:r.takePrice,kind:'take',detail:`價格 ${r.side==='long'?'+':'−'}${compact(r.stop*r.rr)}% · 預估淨利 ${fmt(r.plannedProfit)} U`},
     {name:'入場',value:r.entry,kind:'entry',detail:`${r.side==='long'?'做多':'做空'} · ${r.leverage}× 逐倉`},
     {name:'停損',value:r.stopPrice,kind:'stop',detail:`價格 ${r.side==='long'?'−':'+'}${compact(r.stop)}% · 預估虧損 ${fmt(r.plannedLoss)} U`},
     {name:'預估強平',value:r.liquidation,kind:'liquidation',detail:r.liquidation===0?'模型下限，不代表實際無風險':'依目前假設參數計算'}].sort((a,b)=>b.value-a.value);
+  renderPriceAxis(rows,r);
   $('price-map').replaceChildren();
   rows.forEach(row=>{
     const el=document.createElement('div');el.className=`price-row ${row.kind}`;
@@ -63,6 +109,11 @@ function render() {
     $('result-badge').textContent=waiting?'待輸入':'待修正';$('result-badge').classList.toggle('capped',!waiting);
     $('amount-caption').textContent=prompt+'。';
     $('price-map').replaceChildren();$('price-map').setAttribute('aria-label',prompt);
+    $('price-axis').replaceChildren();$('price-axis').setAttribute('aria-label',prompt);
+    $('map-empty').hidden=false;$('map-empty').textContent=prompt+'，查看出場價位。';
+    $('funding-bar').replaceChildren();$('funding-bar').setAttribute('aria-label',prompt);
+    $('funding-metrics').replaceChildren();$('funding-risk').textContent='—';
+    $('funding-empty').hidden=false;$('funding-empty').textContent=prompt+'，查看資金分配。';
     $('price-title').textContent=`${side==='long'?'做多':'做空'} · 出場價位（USDT）`;
     $('checks').replaceChildren();$('capital-bars').replaceChildren();$('capital-bars').setAttribute('aria-label',prompt);
     ['liquidation-gap','parts-label','cap-note'].forEach(id=>$(id).textContent='—');
@@ -79,7 +130,7 @@ function render() {
   $('result-badge').textContent=r.ready?'符合試算條件 · 待核對 OKX':'未符合開單條件';
   $('result-badge').classList.toggle('capped',!r.ready);
   const outputs={notional:fmt(r.notional),margin:fmt(r.margin),'equation-leverage':r.leverage+'×','equation-notional':fmt(r.notional),
-    'planned-loss':fmt(r.plannedLoss,4),'planned-profit':fmt(r.plannedProfit,4),'rr-result':`${compact(r.rr)} / ${fmt(r.netRR,3)}`,
+    'planned-loss':fmt(r.plannedLoss,4),'planned-profit':fmt(r.plannedProfit,4),'rr-result':`${compact(r.rr)} / ${fmt(r.netRR,3)}`,'liquidation-result':price(r.liquidation),
     'budget-equation':`${compact(r.capital)} × ${compact(r.risk)}% = ${compact(r.budget)} U`,
     'notional-equation':`${compact(r.budget)} ÷ ${fmt(r.lossRate*100,5)}% ≈ ${fmt(r.targetNotional)} U（上限前）`,
     'margin-equation':`${fmt(r.notional)} ÷ ${r.leverage} ≈ ${fmt(r.margin)} U`};

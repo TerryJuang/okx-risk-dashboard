@@ -109,7 +109,7 @@ function makePage() {
  }
  for(const side of ['long','short']){const el=new Element('button');el.dataset.side=side;sideButtons.push(el);}
  let registered;
- const document={getElementById:id=>{assert.ok(nodes.has(id),'Missing DOM id '+id);return nodes.get(id);},createElement:tag=>new Element(tag),querySelectorAll:selector=>selector==='[data-output]'?outputs:sideButtons,modelContext:{registerTool:tool=>{registered=tool;}}};
+ const document={getElementById:id=>{assert.ok(nodes.has(id),'Missing DOM id '+id);return nodes.get(id);},createElement:tag=>new Element(tag),createElementNS:(namespace,tag)=>new Element(tag),querySelectorAll:selector=>selector==='[data-output]'?outputs:sideButtons,modelContext:{registerTool:tool=>{registered=tool;}}};
  const context=vm.createContext({document,window:{addEventListener(){}},Intl,AbortController});
  vm.runInContext(readFileSync(require.resolve('../dist/calculator.js'),'utf8'),context);
  vm.runInContext(readFileSync(require.resolve('../dist/app.js'),'utf8'),context);
@@ -150,4 +150,45 @@ test('Agent interface validates before mutation and returns current visible resu
  const previous=p.nodes.get('capital').value;
  assert.throws(()=>tool.execute({capital:-1,risk:2}));assert.equal(p.nodes.get('capital').value,previous);
  function fmt(n){return new Intl.NumberFormat('zh-TW',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);}
+});
+
+test('EXIT MAP places both directions on a linear price axis, including unsafe leverage',()=>{
+ for(const side of ['long','short']) for(const leverage of [1,20,100]) {
+  const p=makePage();
+  const r=p.tool().execute({capital:500,risk:2,entry:2500,side,leverage});
+  const dots=p.nodes.get('price-axis').children[0].children.filter(el=>el.attrs.class?.startsWith('axis-dot'));
+  const values={take:r.takePrice,entry:r.entry,stop:r.stopPrice,liquidation:r.liquidation};
+  assert.equal(dots.length,4);
+  const low=Math.min(...Object.values(values)),high=Math.max(...Object.values(values));
+  for(const dot of dots) {
+   const kind=dot.attrs.class.split(' ')[1];
+   const reconstructed=low+(parseFloat(dot.attrs.cx)-10)/80*(high-low);
+   near(reconstructed,values[kind]);
+  }
+  assert.equal(p.nodes.get('price-map').children.length,4);
+  assert.equal(p.nodes.get('map-empty').hidden,true);
+ }
+});
+test('Funding allocation totals capital without adding loss to the margin again',()=>{
+ const p=makePage();
+ const r=p.tool().execute({capital:500,risk:2,entry:2500});
+ const bars=p.nodes.get('funding-bar').children;
+ assert.equal(bars.length,3);
+ near(bars.reduce((sum,bar)=>sum+parseFloat(bar.style.width),0),100);
+ near(parseFloat(bars[0].style.width)*5,r.margin);
+ near(parseFloat(bars[1].style.width)*5,r.openCost);
+ near(parseFloat(bars[2].style.width)*5,500-r.cashRequired);
+ assert.equal(p.nodes.get('funding-metrics').children.length,3);
+ p.edit('entry','');
+ for(const id of ['price-axis','funding-bar','funding-metrics']) assert.equal(p.nodes.get(id).children.length,0);
+ assert.equal(p.nodes.get('liquidation-result').textContent,'—');
+ assert.equal(p.nodes.get('map-empty').hidden,false);assert.equal(p.nodes.get('funding-empty').hidden,false);
+ p.edit('entry',2500);p.edit('entry',-1);
+ assert.equal(p.nodes.get('price-axis').children.length,0);assert.equal(p.nodes.get('funding-bar').children.length,0);
+});
+test('Coincident floating-point prices keep finite chart coordinates',()=>{
+ const p=makePage();
+ p.tool().execute({capital:500,risk:2,entry:2500,stop:1e-16,mmr:4.95,closeFee:.05,leverage:20});
+ const svg=p.nodes.get('price-axis').children[0];
+ for(const el of svg.children) for(const value of Object.values(el.attrs)) assert.ok(!/NaN|Infinity/.test(String(value)));
 });
