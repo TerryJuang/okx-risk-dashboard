@@ -112,9 +112,16 @@ service cloud.firestore {
         math.abs(d.totals.gross-(previous.gross+closeGross(next,d.actual,d.current.inputs.side)-closeGross(old,d.actual,d.current.inputs.side)))<
           0.0000001+0.000000000001*math.abs(d.totals.gross);
     }
+
+    function closeAuditRequired(uid,id,d) {
+      let rev=getAfter(/databases/$(database)/documents/users/$(uid)/trades/$(id)/revisions/$(d.mutationId)).data;
+      return rev.closeId!='' && rev.close!=null && rev.close.mutationId==d.mutationId &&
+        rev.close.updatedAt==request.time;
+    }
+
     function validTotalsChange(uid,id,d) {
       let before=resource.data;
-      return (d.actual==before.actual && (d.totals==before.totals || totalsDelta(uid,id,d,before.totals))) ||
+      return (d.actual==before.actual && (d.totals==before.totals || closeAuditRequired(uid,id,d))) ||
         (d.actual!=before.actual && d.actual!=null &&
           d.totals.quantity==before.totals.quantity && d.totals.fees==before.totals.fees && d.totals.count==before.totals.count &&
           (before.actual==null?d.totals.gross==0:
@@ -131,7 +138,7 @@ service cloud.firestore {
       return keys(d,['record','at','authTime','closeId','close']) && d.at==request.time &&
         d.authTime==request.auth.token.auth_time && d.record==parent && parent.mutationId==op &&
         ((d.closeId=='' && d.close==null) ||
-         (str(d.closeId,20,64) && validClose(d.close) &&
+         (str(d.closeId,20,64) && d.close.mutationId==op && d.close.updatedAt==request.time &&
           d.close==getAfter(/databases/$(database)/documents/users/$(uid)/trades/$(id)/closes/$(d.closeId)).data));
     }
     function closeParent(uid,id,cid,d) {
