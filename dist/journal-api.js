@@ -8,6 +8,21 @@ const auth=initializeAuth(app,{persistence:browserSessionPersistence,popupRedire
 const db=getFirestore(app,'(default)'); // Memory cache only; no persistent offline journal.
 const provider=new GoogleAuthProvider();provider.setCustomParameters({prompt:'select_account'});
 const core=globalThis.RiskJournal;
+
+// Store verbose snapshots as canonical, bounded JSON. Numeric inputs remain typed maps.
+// JSON's number round trip preserves the calculator's original double precision.
+const resultKeys=["entry","capital","risk","stop","rr","splitCount","mmr","maxLeverage","openFee","closeFee","slippage","buffer","leverage","side","maxAllowed","contractLeverageOk","sign","stopPrice","takePrice","stopFill","takeFill","liquidation","lossRate","profitRate","budget","targetNotional","notional","margin","plannedLoss","plannedProfit","netRR","rrOk","netRROk","maxParts","cap","parts","capPct","capped","quantity","openCost","cashRequired","liquidationOutside","liquidationDistance","requiredDistance","gap","ready"];
+const rawKeys=["entry","capital","risk","stop","rr","splitCount","mmr","maxLeverage","openFee","closeFee","slippage","buffer","leverage","side","stop-price","loss-budget"];
+function encodePlan(s) {
+  return {...s,result:JSON.stringify(Object.fromEntries(resultKeys.map(k=>[k,s.result[k]]))),
+    raw:JSON.stringify(Object.fromEntries(rawKeys.map(k=>[k,s.raw[k]])))};
+}
+function decodePlan(s) {
+  return {...s,result:typeof s.result==='string'?JSON.parse(s.result):s.result,
+    raw:typeof s.raw==='string'?JSON.parse(s.raw):s.raw};
+}
+function decodeTrade(r) { return {...r,original:decodePlan(r.original),current:decodePlan(r.current)}; }
+
 export const subscribe=listener=>onAuthStateChanged(auth,listener);
 export const login=()=>signInWithPopup(auth,provider);
 export const logout=()=>signOut(auth);
@@ -19,7 +34,13 @@ export async function access() {
 }
 function requireUser(){const u=user();if(!u)throw new Error('請先使用 Google 登入。');return u;}
 function tradeRef(id){return doc(db,'users',requireUser().uid,'trades',id);}
-const data=s=>s.exists()?{id:s.id,...s.data()}:null;
+const data=s=>{
+  if(!s.exists())return null;
+  let r={id:s.id,...s.data()};
+  if(r.original)r=decodeTrade(r);
+  if(r.record)r.record=decodeTrade(r.record);
+  return r;
+};
 export async function getTrade(id){return data(await getDocFromServer(tradeRef(id)));}
 export async function listTrades(trashed=false,cursor=null) {
   const clauses=[where('trashed','==',trashed),orderBy('createdAt','desc'),limit(25)];
@@ -59,12 +80,12 @@ function revision(ref,id,record,loginTime,changedClose=null) {
     closeId:changedClose?changedClose.id:'',close:changedClose?plain(changedClose):null}};
 }
 export async function createTrade(snapshot,metadata,id) {
-  const ref=tradeRef(id),uid=requireUser().uid,loginTime=await authTime();
+  const ref=tradeRef(id),uid=requireUser().uid,loginTime=await authTime(),plan=encodePlan(snapshot);
   return runTransaction(db,async tx=>{
     const existing=await tx.get(ref);if(existing.exists())return id;
     const record={schemaVersion:1,appVersion:'journal-v1',ownerUid:uid,createdAt:serverTimestamp(),updatedAt:serverTimestamp(),
       authTime:loginTime,clientSavedAt:ts(metadata.savedAt),editStartedAt:ts(metadata.startedAt),clientEditedAt:ts(metadata.editedAt),
-      timeZone:metadata.timeZone,original:snapshot,current:snapshot,strategy:text(metadata.strategy,'策略',120),notes:text(metadata.notes,'備註',4000),
+      timeZone:metadata.timeZone,original:plan,current:plan,strategy:text(metadata.strategy,'策略',120),notes:text(metadata.notes,'備註',4000),
       actual:null,totals:core.emptyTotals(),status:'planned',trashed:false,deletedAt:null,revision:0,mutationId:id};
     tx.set(ref,record);const rev=revision(ref,id,record,loginTime);tx.set(rev.ref,rev.value);return id;
   });
@@ -94,7 +115,7 @@ export function updatePlan(id,expected,opId,snapshot,strategy,notes) {
   return mutate(id,expected,opId,old=>{
     if(old.trashed)throw new Error('請先從垃圾桶還原。');
     if(old.actual)throw new Error('已成交紀錄保留原交易計畫；請在紀錄管理修改實際成交資料。');
-    return {record:{...old,current:snapshot,strategy:text(strategy,'策略',120),notes:text(notes,'備註',4000)}};
+    return {record:{...old,current:encodePlan(snapshot),strategy:text(strategy,'策略',120),notes:text(notes,'備註',4000)}};
   });
 }
 export function updateNotes(id,expected,opId,strategy,notes) {

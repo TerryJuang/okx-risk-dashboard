@@ -11,16 +11,21 @@ let env,alice,bob,unknown;
 const claims={email_verified:true,auth_time:authTime,firebase:{sign_in_provider:'google.com'}};
 const inputs={entry:1200,capital:500,risk:2,stop:2,rr:3,splitCount:10,mmr:.5,maxLeverage:100,openFee:.05,closeFee:.05,slippage:.05,buffer:25,leverage:20,side:'long'};
 const bridge={inputs,raw:{...Object.fromEntries(Object.entries(inputs).map(([k,v])=>[k,String(v)])),'stop-price':'1176','loss-budget':'10'},stopDriver:'percent',budgetDriver:'risk'};
+const resultKeys=["entry","capital","risk","stop","rr","splitCount","mmr","maxLeverage","openFee","closeFee","slippage","buffer","leverage","side","maxAllowed","contractLeverageOk","sign","stopPrice","takePrice","stopFill","takeFill","liquidation","lossRate","profitRate","budget","targetNotional","notional","margin","plannedLoss","plannedProfit","netRR","rrOk","netRROk","maxParts","cap","parts","capPct","capped","quantity","openCost","cashRequired","liquidationOutside","liquidationDistance","requiredDistance","gap","ready"],rawKeys=["entry","capital","risk","stop","rr","splitCount","mmr","maxLeverage","openFee","closeFee","slippage","buffer","leverage","side","stop-price","loss-budget"];
+function encodePlan(s) { return {...s,result:JSON.stringify(Object.fromEntries(resultKeys.map(k=>[k,s.result[k]]))),raw:JSON.stringify(Object.fromEntries(rawKeys.map(k=>[k,s.raw[k]])))}; }
+
 const snapshot=()=>C.snapshot(bridge,{symbol:'BTC',timeframeOption:'15'},calculate);
 const ref=(db,id,uid='alice')=>doc(db,'users',uid,'trades',id);
 function record(uid='alice',id=randomUUID()) {
- const plan=snapshot(),client=Timestamp.fromMillis(Date.UTC(2026,0,1));
+ const plan=encodePlan(snapshot()),client=Timestamp.fromMillis(Date.UTC(2026,0,1));
  return {schemaVersion:1,appVersion:'journal-v1',ownerUid:uid,createdAt:serverTimestamp(),updatedAt:serverTimestamp(),authTime,
  clientSavedAt:client,editStartedAt:client,clientEditedAt:client,timeZone:'Asia/Taipei',original:plan,current:plan,
  strategy:'test',notes:'fixture only',actual:null,totals:C.emptyTotals(),status:'planned',trashed:false,deletedAt:null,revision:0,mutationId:id};
 }
 async function create(db=alice,patch={},uid='alice',id=randomUUID()) {
  const r={...record(uid,id),...patch},b=writeBatch(db),tr=ref(db,id,uid);
+ if(typeof r.current.result!=='string')r.current=encodePlan(r.current);
+ if(typeof r.original.result!=='string')r.original=encodePlan(r.original);
  b.set(tr,r);b.set(doc(tr,'revisions',r.mutationId),{record:r,at:serverTimestamp(),authTime,closeId:'',close:null});
  await b.commit();return id;
 }
@@ -76,7 +81,7 @@ test('ownership hijack, unknown fields, missing fields and forged timestamps are
 test('input and result schemas reject invalid numeric values, missing keys, extra fields and raw string abuse',async()=>{
  for(const mutate of [
  s=>s.inputs.entry=0,s=>s.inputs.entry=NaN,s=>s.inputs.entry=Infinity,s=>s.inputs.leverage=101,
- s=>s.raw.entry='x'.repeat(101),s=>s.result.extra='bad',s=>delete s.inputs.rr,
+ s=>s.raw.entry='x'.repeat(101),s=>s.extra='bad',s=>delete s.inputs.rr,
  s=>s.timeframeMinutes=0,s=>s.timeframeMinutes=.5,s=>s.timeframeMinutes=30,s=>s.symbol='<script>',
  s=>s.result.ready=false,s=>s.result.margin=Infinity
  ]) {const s=snapshot();mutate(s);await assertFails(create(alice,{current:s,original:s}));}
@@ -153,4 +158,43 @@ test('a matching revision cannot hide a close quantity change while leaving aggr
  const id=await create();await change(alice,id,{actual:actual(),status:'open'});
  const fill={price:110,quantity:4,fee:.4,executedAt:Timestamp.fromMillis(Date.UTC(2026,0,2)),reason:'take',note:'',deleted:false};
  await assertFails(change(alice,id,{}, {close:fill}));
+});
+
+test('production journal API transactions preserve idempotency, revisions, entry data and partial-close totals in the emulator',async()=>{
+ const {writeFileSync,unlinkSync}=await import('node:fs');
+ const output=new URL('./_journal-api.emulator.mjs',import.meta.url);
+ const values=new Map();globalThis.sessionStorage={getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,String(v))};
+ globalThis.__journalTest={db:alice,auth:{currentUser:{uid:'alice'}},authTime};
+ let source=readFileSync('dist/journal-api.js','utf8')
+   .replace(/^import \{initializeAuth[^\n]*\n/m,'')
+   .replace(/from 'https:\/\/www\.gstatic\.com\/firebasejs\/13\.0\.0\/firebase-(app|firestore)\.js'/g,"from 'firebase/$1'")
+   .replace("import {firebaseConfig} from './firebase-config.js';","const firebaseConfig={};")
+   .replace('const app=initializeApp(firebaseConfig);','const app={};')
+   .replace(/const auth=initializeAuth\([^;]+;/,'const auth=globalThis.__journalTest.auth;')
+   .replace("const db=getFirestore(app,'(default)');","const db=globalThis.__journalTest.db;")
+   .replace('const provider=new GoogleAuthProvider();','class GoogleAuthProvider {setCustomParameters(){}}\nconst getIdTokenResult=async()=>({claims:{auth_time:globalThis.__journalTest.authTime}});\nconst provider=new GoogleAuthProvider();');
+ writeFileSync(output,source);
+ try {
+   const api=await import(output.href+'?'+randomUUID());
+   const now=Date.now(),plan=snapshot(),id=await api.operationId('create',{plan});
+   assert.equal(await api.operationId('create',{plan}),id);
+   const metadata={savedAt:now,startedAt:now,editedAt:now,timeZone:'Asia/Taipei',strategy:'api test',notes:''};
+   await api.createTrade(plan,metadata,id);await api.createTrade(plan,metadata,id);
+   let r=await api.getTrade(id);assert.equal(r.revision,0);assert.deepEqual(r.original.result,calculate(inputs));
+   assert.equal((await api.listRevisions(id)).rows.length,1);
+   const a={price:100,quantity:10,openingFee:1,funding:-.5,margin:100,leverage:10,openedAt:Date.UTC(2026,0,1)};
+   await api.updateEntry(id,r.revision,randomUUID(),a);r=await api.getTrade(id);assert.equal(r.status,'open');
+   const fill={price:110,quantity:4,fee:.4,executedAt:Date.UTC(2026,0,2),reason:'take',note:'',deleted:false};
+   const cid=randomUUID(),op=randomUUID();
+   await api.saveClose(id,r.revision,op,cid,fill);await api.saveClose(id,r.revision,op,cid,fill);
+   r=await api.getTrade(id);assert.equal(r.status,'partial');assert.equal(r.totals.count,1);assert.equal(r.totals.quantity,4);
+   await assert.rejects(api.saveClose(id,r.revision,randomUUID(),randomUUID(),{...fill,quantity:7}));
+   assert.equal((await api.getTrade(id)).totals.quantity,4);
+   await api.saveClose(id,r.revision,randomUUID(),randomUUID(),{...fill,quantity:6,price:90,fee:.6});
+   r=await api.getTrade(id);assert.equal(r.status,'closed');assert.equal(C.summary(r.actual,r.totals).net,-22.5);
+   const unchanged=JSON.stringify(r.original);
+   await api.setTrash(id,r.revision,randomUUID(),true);r=await api.getTrade(id);assert.equal(r.trashed,true);
+   await api.setTrash(id,r.revision,randomUUID(),false);r=await api.getTrade(id);
+   assert.equal(r.trashed,false);assert.equal(JSON.stringify(r.original),unchanged);
+ }finally{unlinkSync(output);delete globalThis.__journalTest;delete globalThis.sessionStorage;}
 });

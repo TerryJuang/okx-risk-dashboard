@@ -2,7 +2,7 @@
 
 原生 HTML／CSS／JavaScript 的 USDT 本位線性永續逐倉試算工具。
 以虧損預算與停損距離推算名目倉位，調整槓桿查看保證金與估算強平價。
-不連接帳戶、不抓即時行情、不執行交易。
+不連接交易所帳戶、不抓即時行情、不執行交易。交易日誌使用 Google 登入，由使用者主動保存至私人 Firebase 資料庫。
 
 **正式網站：[開單風險試算](https://terryjuang.github.io/okx-risk-dashboard/)**
 
@@ -10,7 +10,7 @@
 
 ## 開啟與測試
 
-直接以瀏覽器開啟 `dist/index.html` 即可使用，不需要 npm install 或建置。
+網站無需前端建置。試算可直接開啟；Firebase 模組需以 HTTP／HTTPS 提供，例如在專案根目錄執行 `python3 -m http.server 4173 --directory dist`。
 計算及事件測試使用 Node.js 24：
 
 ```bash
@@ -58,7 +58,9 @@ GitHub 舊版備份分支：[`backup/v5-before-dashboard-20261012`](https://gith
 git fetch origin
 git switch -c restore-v5 origin/main
 git restore --source=origin/backup/v5-before-dashboard-20261012 -- dist tests/risk.test.cjs
-git rm tests/tooltips.test.cjs tests/timeframe.test.cjs
+git rm tests/tooltips.test.cjs tests/timeframe.test.cjs tests/journal.test.cjs
+git rm -r tests/firebase .github/workflows/journal.yml
+git rm firebase.json firestore.rules firestore.indexes.json
 node --test tests/*.test.cjs
 git add dist tests/risk.test.cjs
 git commit -m "Restore v5 UI with original calculation rules"
@@ -69,12 +71,12 @@ git push -u origin restore-v5
 
 ## 相依與授權
 
-前端沒有第三方套件、CDN、字型下載或新增框架，故無新增前端套件授權。
+前端維持原生架構，交易日誌使用官方 CDN 的 Firebase Web SDK 13.0.0（Apache-2.0）；測試工具及授權見 [Firebase 啟用文件](docs/delivery/firebase-journal-setup.md)。
 GitHub Actions 使用 GitHub 官方維護的 checkout、setup-node、configure-pages、upload-pages-artifact、deploy-pages，皆為 MIT 授權。
 本專案沒有另行指定開源授權；公開可見不等於授予任意使用授權。
 
-## 時間週期與交易日誌規劃
+## 時間週期與交易日誌
 
-時間週期選單提供 3、5、15、30 分鐘、1 小時、4 小時、1 天及其他正整數分鐘，預設請選擇。選擇週期不改變財務計算。Firebase 尚未整合，「輸出記錄」保存按鈕將待資料庫方案確認後製作。
+時間週期選單提供 3、5、15、30 分鐘、1 小時、4 小時、1 天及其他正整數分鐘，預設請選擇。選擇週期不改變財務計算。交易日誌提供「輸出記錄」、獨立紀錄管理頁、實際成交、分批平倉、垃圾桶還原及績效。Firebase Console 必須完成登入、規則、索引與核准 UID 才可存取資料。
 
-[可直接複製的 Firebase 交易日誌規劃提示詞](docs/planning/firebase-journal-prompt.md)。先規劃，不開通或寫入正式資料庫。
+[Firebase 啟用／復原步驟](docs/delivery/firebase-journal-setup.md) · [最初規劃提示詞](docs/planning/firebase-journal-prompt.md)。最新使用者已授權開發，原提示詞的「僅規劃」階段限制已被後續授權取代。
