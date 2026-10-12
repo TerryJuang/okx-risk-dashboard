@@ -54,7 +54,7 @@ after(async()=>{
   console.log('RULE_COVERAGE_TOP',JSON.stringify(Object.keys(report)));
   const file=report?.rules?.files?.[0]||report?.files?.[0];
   console.log('RULE_COVERAGE_FILE_KEYS',JSON.stringify(Object.keys(file||{})));
-  console.log('RULE_COVERAGE_SAMPLE',JSON.stringify(report).slice(0,1600));
+  console.log('RULE_COVERAGE_SAMPLE',JSON.stringify(report.report).slice(0,5000));
  }catch(error){console.log('RULE_COVERAGE_ERROR',error.message);}
  await env?.cleanup();
 });
@@ -213,4 +213,23 @@ test('production journal API transactions preserve idempotency, revisions, entry
    await api.setTrash(id,r.revision,randomUUID(),false);r=await api.getTrade(id);
    assert.equal(r.trashed,false);assert.equal(JSON.stringify(r.original),unchanged);
  }finally{unlinkSync(output);delete globalThis.__journalTest;delete globalThis.sessionStorage;}
+});
+
+test('isolate rule expression cost by validator in the demo emulator',async()=>{
+ const original=readFileSync('firestore.rules','utf8');
+ const replacements=[
+ ['snapshot',/function validSnapshot\(d\) \{[\s\S]*?\n    \}/,'function validSnapshot(d) { return true; }'],
+ ['result',/function validResult\(d\) \{[^\n]+/,'function validResult(d) { return true; }'],
+ ['raw',/function validRaw\(d\) \{[^\n]+/,'function validRaw(d) { return true; }'],
+ ['inputs',/function validInputs\(d\) \{[\s\S]*?\n    function validRaw/,'function validInputs(d) { return true; }\n    function validRaw'],
+ ['trade',/function validTrade\(d,uid,checkPlan\) \{[\s\S]*?\n    \}/,'function validTrade(d,uid,checkPlan) { return true; }']
+ ];
+ for(const [name,regex,replacement] of replacements) {
+  try {
+   const alternate=original.replace(regex,replacement);
+   await initializeTestEnvironment({projectId,firestore:{rules:alternate,host:'127.0.0.1',port:8080}});
+   await create();console.log('BUDGET_DIAGNOSTIC',name,'PASS');
+  }catch(error){console.log('BUDGET_DIAGNOSTIC',name,'FAIL',String(error.message).slice(0,300));}
+ }
+ await initializeTestEnvironment({projectId,firestore:{rules:original,host:'127.0.0.1',port:8080}});
 });
