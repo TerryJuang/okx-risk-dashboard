@@ -86,6 +86,12 @@ test('input and result schemas reject invalid numeric values, missing keys, extr
  s=>s.result.ready=false,s=>s.result.margin=Infinity
  ]) {const s=snapshot();mutate(s);await assertFails(create(alice,{current:s,original:s}));}
 });
+test('canonical JSON snapshots reject extra keys, non-finite numbers and malformed raw strings',async()=>{
+ const s=encodePlan(snapshot());s.result=s.result.slice(0,-1)+',"extra":1}';
+ await assertFails(create(alice,{current:s,original:s}));
+ const t=encodePlan(snapshot());t.result=t.result.replace('"margin":','"margin":null,"unknown":');
+ await assertFails(create(alice,{current:t,original:t}));
+});
 test('valid notes update preserves original snapshot and appends immutable revision',async()=>{
  const id=await create();await assertSucceeds(change(alice,id,{notes:'revised'}));
  const docSnap=await getDoc(ref(alice,id));assert.equal(docSnap.data().revision,1);
