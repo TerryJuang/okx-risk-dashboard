@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111512">
+  <meta name="description" content="OKX USDT 永續逐倉開單試算：依可承受虧損和停損距離計算交易額，拉動槓桿查看保證金、停利與預估強平價格。">
+  <title>開單風險試算 · OKX 逐倉</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111512'/%3E%3Cpath d='M8 23V9h5v14zm11 0V15h5v8z' fill='%23c5f86b'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css"><script src="calculator.js" defer></script><script src="app.js" defer></script><script src="tooltips.js" defer></script>
+</head>
+<body>
+<main class="shell">
+  <header class="masthead"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">R</span>開單風險試算</a><span class="market-tag">OKX · USDT 永續 · 逐倉</span></header>
+  <div class="intro"><p class="eyebrow">PLAN THE LOSS. SIZE THE TRADE.</p><h1>停損先定好，倉位再算清。</h1><p>先輸入可承受虧損與停損距離，再拉動槓桿，查看保證金與強平位置。<span class="tooltip"><button type="button" class="help-icon" aria-label="試算使用說明" aria-describedby="scope-help">?</button><span class="tooltip-text" id="scope-help" role="tooltip" hidden>請輸入你的交易價格；其餘預填數字可修改，非即時行情。適用 USDT 本位線性永續合約；本頁不連接帳戶、不執行交易。</span></span></p></div>
+  <div class="workspace">
+    <section class="inputs panel" aria-labelledby="input-title">
+      <div class="section-heading"><h2 id="input-title">設定這筆交易</h2><span class="step-tag">01 / INPUT</span></div>
+      <form id="risk-form" novalidate>
+        <fieldset class="direction"><legend>交易方向</legend><button type="button" data-side="long" aria-pressed="true">↗ 做多</button><button type="button" data-side="short" aria-pressed="false">↘ 做空</button></fieldset>
+        <div class="field"><label for="entry">入場價格</label><div class="input-wrap"><input id="entry" type="number" inputmode="decimal" min="0" step="any" value="" required><span>USDT</span></div></div>
+        <div class="setting-grid">
+          <div><div class="field-label"><label for="stop">價格停損距離</label><span class="tooltip"><button type="button" class="help-icon" aria-label="價格停損距離說明" aria-describedby="stop-help">?</button><span class="tooltip-text" id="stop-help" role="tooltip" hidden>兩欄連動，以最後修改欄位為準。這裡的％是幣價變動，與總資金風險不同。</span></span></div><div class="input-wrap small"><input id="stop" type="number" inputmode="decimal" min="0" max="99.99" step="any" value="2" required aria-describedby="stop-help"><span>%</span></div></div>
+          <div><label for="stop-price">停損價格</label><div class="input-wrap small"><input id="stop-price" type="number" inputmode="decimal" min="0" step="any" value="" required aria-describedby="stop-help"><span>USDT</span></div></div>
+        </div>
+        <div class="field"><div class="field-label"><label for="rr">盈虧比 RR（價格）</label><span class="tooltip"><button type="button" class="help-icon" aria-label="盈虧比 RR 說明" aria-describedby="rr-help">?</button><span class="tooltip-text" id="rr-help" role="tooltip" hidden>做多須 &gt; 2；做空須 ≥ 1。RR = 停利距離 ÷ 停損距離，費用後 RR 另列。</span></span></div><div class="input-wrap small"><input id="rr" type="number" inputmode="decimal" min="0" step="any" value="3" required aria-describedby="rr-help"><span>倍</span></div></div>
+        <div class="form-divider"></div>
+        <div class="field-label"><label for="capital">持有總金額</label><span class="tooltip"><button type="button" class="help-icon" aria-label="持有總金額說明" aria-describedby="capital-tooltip">?</button><span class="tooltip-text" id="capital-tooltip" role="tooltip" hidden>這是你本帳戶錢包總資金。</span></span></div><div class="input-wrap small"><input id="capital" type="number" inputmode="decimal" min="0" step="any" value="500" required aria-describedby="capital-tooltip"><span>USDT</span></div>
+        <div class="setting-grid">
+          <div><label for="risk">單筆總資金風險</label><div class="input-wrap small"><input id="risk" type="number" inputmode="decimal" min="0" max="100" step="any" value="2" required aria-describedby="budget-help"><span>%</span></div></div>
+          <div><div class="field-label"><label for="loss-budget">單筆可承受虧損金額</label><span class="tooltip"><button type="button" class="help-icon" aria-label="單筆可承受虧損金額說明" aria-describedby="budget-help">?</button><span class="tooltip-text" id="budget-help" role="tooltip" hidden>兩欄連動，以最後修改欄位為準。金額為含下方費用與滑價假設的虧損預算。</span></span></div><div class="input-wrap small"><input id="loss-budget" type="number" inputmode="decimal" min="0" step="any" value="10" required aria-describedby="budget-help"><span>USDT</span></div></div>
+        </div>
+        <details class="settings">
+          <summary><span>強平與交易成本假設<small>需依 OKX 合約檔位與帳戶費率核對</small></span><span class="chevron" aria-hidden="true">⌄</span></summary>
+          <p class="help">以下都是可修改的示例參數，未串接即時檔位。維持保證金率會依幣種與倉位改變；不確定時，以 OKX 訂單預覽核對。</p>
+          <div class="setting-grid">
+            <div><label for="mmr">維持保證金率</label><div class="input-wrap small"><input id="mmr" type="number" min="0" max="50" step="any" value="0.5"><span>%</span></div></div>
+            <div><label for="max-leverage">合約槓桿上限</label><div class="input-wrap small"><input id="max-leverage" type="number" min="1" max="100" step="1" value="100"><span>倍</span></div></div>
+            <div><label for="open-fee">開倉費率</label><div class="input-wrap small"><input id="open-fee" type="number" min="0" max="5" step="any" value="0.05"><span>%</span></div></div>
+            <div><label for="close-fee">平倉／強平費率</label><div class="input-wrap small"><input id="close-fee" type="number" min="0" max="5" step="any" value="0.05"><span>%</span></div></div>
+            <div><label for="slippage">平倉滑價預留</label><div class="input-wrap small"><input id="slippage" type="number" min="0" max="10" step="any" value="0.05"><span>%</span></div></div>
+            <div><label for="buffer">強平額外緩衝</label><div class="input-wrap small"><input id="buffer" type="number" min="0" max="500" step="any" value="25"><span>%</span></div></div>
+          </div>
+          <p class="help">滑價以入場價為基準。額外緩衝以「停損距離」為基準：停損 2%、緩衝 25% 會再留 0.5 個百分點。緩衝是本工具的規劃假設，並非 OKX 保證。</p>
+        </details>
+        <p id="input-error" class="input-error" role="alert" hidden></p>
+      </form>
+    </section>
+    <section class="results panel" aria-labelledby="result-title">
+      <div class="section-heading"><h2 id="result-title">本次交易額（名目倉位）</h2><span id="result-badge" class="result-badge">試算中</span></div>
+      <div class="amount-line"><strong id="notional" data-output>—</strong><span>USDT</span></div>
+      <p class="amount-caption" id="amount-caption">交易額由虧損預算與停損距離推算。</p>
+      <div class="leverage-box">
+        <div class="leverage-title"><div class="field-label"><label for="leverage">調整槓桿</label><span class="tooltip"><button type="button" class="help-icon" aria-label="調整槓桿說明" aria-describedby="leverage-help">?</button><span class="tooltip-text" id="leverage-help" role="tooltip" hidden>可選 1–100 倍。倉位固定時，提高槓桿會減少保證金、拉近強平價；超過條件會警告，不自動調低。</span></span></div><strong><output id="leverage-value">20</output><small> ×</small></strong></div>
+        <input id="leverage" type="range" min="1" max="100" step="1" value="20" aria-describedby="leverage-help leverage-guidance">
+        <div class="range-labels"><span>1×</span><span>100×</span></div>
+        <p id="leverage-guidance" class="help" role="status">填入價格後，顯示符合停損與緩衝條件的槓桿上限。</p>
+      </div>
+      <div class="equation-box"><div><span>投入保證金</span><strong id="margin" data-output>—</strong></div><span class="operator">×</span><div><span>槓桿</span><strong id="equation-leverage" data-output>—</strong></div><span class="operator">≈</span><div><span>交易額</span><strong id="equation-notional" data-output>—</strong></div></div>
+      <div class="metrics">
+        <div><span>停損預估虧損 · 含成本</span><strong class="loss"><span id="planned-loss" data-output>—</span><small> U</small></strong></div>
+        <div><span>停利預估獲利 · 扣成本</span><strong class="profit"><span id="planned-profit" data-output>—</span><small> U</small></strong></div>
+        <div><span>價格 RR / 費用後 RR</span><strong id="rr-result" data-output>—</strong></div>
+      </div>
+      <div id="checks" class="checks" aria-live="polite"></div>
+      <p id="calculation-warning" class="calculation-warning" hidden></p>
+      <details class="allocation" id="allocation">
+        <summary><span>資金切分</span><span class="allocation-summary"><span id="parts-label">—</span><span class="chevron" aria-hidden="true">⌄</span></span></summary>
+        <div class="split-setting"><label for="split-count">切分份數</label><div class="input-wrap small"><input id="split-count" type="number" inputmode="numeric" min="1" max="1000" step="1" value="10"><span>份</span></div></div>
+        <p class="help">資金保留原則：建議至少 10 份，每單保證金最多 3 份。超過上限會縮小倉位。</p>
+        <p id="split-warning" class="calculation-warning" role="status" hidden></p>
+        <div id="capital-bars" class="capital-bars" role="img" aria-label="資金占用"></div>
+        <p id="cap-note" class="help">—</p>
+      </details>
+    </section>
+  </div>
+  <section class="price-section panel" aria-labelledby="price-title">
+    <div class="section-heading"><div><p class="eyebrow">EXIT MAP</p><h2 id="price-title">做多 · 出場價位</h2></div><span class="math-context">價位順序示意 · 間距非等比例</span></div>
+    <div id="price-map" class="price-map" role="img" aria-label="出場價位示意"></div>
+    <p id="liquidation-gap" class="help">—</p>
+  </section>
+  <section class="math-section" aria-labelledby="math-title">
+    <div class="section-heading"><h2 id="math-title">這筆怎麼算</h2><span class="math-context">先算風險，再算倉位與保證金</span></div>
+    <div class="math-grid">
+      <article><span class="math-number">01</span><h3>可承受虧損</h3><p>總資金 × 單筆風險</p><strong id="budget-equation" data-output>—</strong></article>
+      <article><span class="math-number">02</span><h3>交易額</h3><p>虧損預算 ÷ 每單位倉位的停損與成本率</p><strong id="notional-equation" data-output>—</strong></article>
+      <article><span class="math-number">03</span><h3>保證金</h3><p>交易額 ÷ 槓桿，並檢查資金切分上限</p><strong id="margin-equation" data-output>—</strong></article>
+    </div>
+  </section>
+  <details class="source-notes">
+    <summary><span>計算定義、限制與官方依據</span><span class="chevron" aria-hidden="true">⌄</span></summary>
+    <div class="source-content">
+      <div><h3>價格與盈虧比</h3><p>以入場價 E、停損距離 d（小數）、價格 RR 為準。做多：停損 E×(1−d)，停利 E×(1+d×RR)；做空：停損 E×(1+d)，停利 E×(1−d×RR)。多空都以入場價為分母，不使用倒數百分比。RR 門檻是你的個人規則，不表示策略有獲利優勢。</p></div>
+      <div><h3>逐倉強平估算</h3><p>令 Q 為幣數、M 為逐倉保證金、m 為維持保證金率、f 為平倉費率。做多：(E−M/Q)÷(1−m−f)；做空：(E+M/Q)÷(1+m+f)。本工具取 M＝交易額÷槓桿，開倉費另計，不從 M 重複扣除。做多 1 倍的模型強平價為 0，不表示實際上沒有風險。</p></div>
+      <div><h3>交易成本與資金</h3><p>停損試算包含開倉費、依假設成交價計算的平倉費及滑價。停利使用同一組費率與不利滑價。交易額以 0.01 U 向下取整，保證金是理論值；尚未套用合約面值、最小張數與價格刻度。投入時需另備開倉費，資金不足時會縮小倉位。若改總資金，保留最後編輯的風險％或虧損金額。</p></div>
+      <div><h3>強平估算的界線</h3><p>僅試算單一 USDT 本位逐倉部位，假設固定檔位、沒有已有倉位、追加保證金、資金費與其他餘額變動。不適用幣本位、全倉或組合保證金。強平緩衝為停損距離的額外比例，並加上滑價預留。計算條件符合，不代表實盤安全；下單前必須核對 OKX 當前檔位與預估強平價。</p></div>
+      <div class="sources"><h3>資料來源 · 2026-10-12 核對</h3><a href="https://www.okx.com/en-us/help/vii-introduction-to-the-isolated-mode-of-single-multi-currency-portfolio-margin" target="_blank" rel="noopener noreferrer">OKX：逐倉永續公式與維持保證金率</a><a href="https://www.okx.com/help/frequently-issues-of-contracts-for-compulsory-liquidation" target="_blank" rel="noopener noreferrer">OKX：標記價格、強平與停損的差異</a><a href="https://www.okx.com/trade-market/position/swap" target="_blank" rel="noopener noreferrer">OKX：永續合約倉位檔位</a><a href="https://elitezh.notion.site/34f1031509f68106b8d6c0aaa162079c" target="_blank" rel="noopener noreferrer">原教材：資金切分規則</a></div>
+    </div>
+  </details>
+  <footer><span>先定損失，再談獲利。</span><span>僅試算 · 數字不傳送至交易所</span></footer>
+</main>
+</body>
+</html>
