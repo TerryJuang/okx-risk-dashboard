@@ -9,7 +9,7 @@ rules_version = '2';
 // No public reads, cross-account access, client self-enrolment, or permanent deletes.
 service cloud.firestore {
   match /databases/{database}/documents {
-    function keys(d,k) { return d is map && d.keys().hasAll(k) && d.keys().hasOnly(k); }
+    function keys(d,k) { return d is map && d.size()==k.size() && d.keys().hasOnly(k); }
     function str(v,lo,hi) { return v is string && v.size()>=lo && v.size()<=hi; }
     function finite(v,lo,hi) { return v is number && v>=lo && v<=hi; }
     function integer(v,lo,hi) { return v is int && v>=lo && v<=hi; }
@@ -87,7 +87,7 @@ service cloud.firestore {
     }
     function revisionAfter(uid,id,d) {
       let path=/databases/$(database)/documents/users/$(uid)/trades/$(id)/revisions/$(d.mutationId);
-      return !exists(path) && getAfter(path).data.record==d && getAfter(path).data.at==request.time;
+      return !exists(path) && getAfter(path).data.record.revision==d.revision && getAfter(path).data.at==request.time;
     }
 
     function closeQuantity(d) { return d.deleted ? 0 : d.quantity; }
