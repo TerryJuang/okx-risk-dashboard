@@ -35,6 +35,11 @@
       "collectionGroup": "revisions",
       "fieldPath": "close",
       "indexes": []
+    },
+    {
+      "collectionGroup": "plans",
+      "fieldPath": "snapshot",
+      "indexes": []
     }
   ]
 }
