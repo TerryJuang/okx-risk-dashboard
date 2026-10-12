@@ -152,7 +152,7 @@ test('Agent interface validates before mutation and returns current visible resu
  function fmt(n){return new Intl.NumberFormat('zh-TW',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);}
 });
 
-test('EXIT MAP places both directions on a linear price axis, including unsafe leverage',()=>{
+test('EXIT MAP places both directions on a vertical linear price axis, including unsafe leverage',()=>{
  for(const side of ['long','short']) for(const leverage of [1,20,100]) {
   const p=makePage();
   const r=p.tool().execute({capital:500,risk:2,entry:2500,side,leverage});
@@ -162,12 +162,36 @@ test('EXIT MAP places both directions on a linear price axis, including unsafe l
   const low=Math.min(...Object.values(values)),high=Math.max(...Object.values(values));
   for(const dot of dots) {
    const kind=dot.attrs.class.split(' ')[1];
-   const reconstructed=low+(parseFloat(dot.attrs.cx)-10)/80*(high-low);
+   assert.equal(dot.attrs.cx,'80%');
+   const reconstructed=high-(Number(dot.attrs.cy)-32)/344*(high-low);
    near(reconstructed,values[kind]);
+   const leaders=p.nodes.get('price-axis').children[0].children.filter(el=>el.attrs.class===`axis-leader ${kind}`);
+   assert.equal(leaders.length,3);
+   assert.equal(leaders[0].attrs.y1,leaders[0].attrs.y2);
+   assert.equal(leaders[2].attrs.y1,dot.attrs.cy);
+   assert.equal(leaders[2].attrs.y2,dot.attrs.cy);
   }
   assert.equal(p.nodes.get('price-map').children.length,4);
   assert.equal(p.nodes.get('map-empty').hidden,true);
  }
+});
+test('Exit summary, three-decimal profit/loss and stop help follow the current calculation',()=>{
+ const p=makePage();
+ const format=(n,digits)=>new Intl.NumberFormat('zh-TW',{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(n);
+ for(const side of ['long','short']) {
+  const r=p.tool().execute({capital:500,risk:2,entry:2500,side,leverage:20});
+  assert.equal(p.nodes.get('planned-loss').textContent,format(r.plannedLoss,3));
+  assert.equal(p.nodes.get('planned-profit').textContent,format(r.plannedProfit,3));
+  assert.equal(p.nodes.get('exit-margin').textContent,format(r.margin,2));
+  assert.equal(p.nodes.get('exit-leverage').textContent,'20×');
+  const stopRow=p.nodes.get('price-map').children.find(el=>el.className==='price-row stop');
+  const trigger=stopRow.children[1].children[1].children[0];
+  assert.equal(trigger.attrs['aria-describedby'],'liquidation-gap');
+  assert.match(p.nodes.get('liquidation-gap').textContent,/停損至預估強平差距/);
+  assert.ok(p.nodes.get('liquidation-gap').textContent.includes(format(r.liquidationDistance*100,3)));
+ }
+ p.edit('entry','');
+ for(const id of ['exit-margin','exit-leverage','planned-loss','planned-profit','liquidation-gap']) assert.equal(p.nodes.get(id).textContent,'—');
 });
 test('Funding allocation totals capital without adding loss to the margin again',()=>{
  const p=makePage();

@@ -16,19 +16,19 @@
     <section class="inputs panel" aria-labelledby="input-title">
       <div class="section-heading"><h2 id="input-title">設定這筆交易</h2><span class="step-tag">01 / INPUT</span></div>
       <form id="risk-form" novalidate>
-        <fieldset class="direction"><legend>交易方向</legend><button type="button" data-side="long" aria-pressed="true">↗ 做多</button><button type="button" data-side="short" aria-pressed="false">↘ 做空</button></fieldset>
+        <fieldset class="direction"><legend>交易方向</legend><button type="button" data-side="long" aria-pressed="true"><svg class="direction-icon" viewBox="0 0 32 32" aria-hidden="true"><path class="direction-bars" d="M5 25v-5m7 5V15m7 10V10m7 15V5"/><path d="m4 18 8-7 6 3L28 4m-7 0h7v7"/></svg><span>做多</span></button><button type="button" data-side="short" aria-pressed="false"><svg class="direction-icon" viewBox="0 0 32 32" aria-hidden="true"><path class="direction-bars" d="M5 7v18m7-12v12m7-7v7m7-2v2"/><path d="m4 5 8 7 6-3 10 17m-7 0h7v-7"/></svg><span>做空</span></button></fieldset>
         <div class="field"><label for="entry">入場價格</label><div class="input-wrap"><input id="entry" type="number" inputmode="decimal" min="0" step="any" value="" required><span>USDT</span></div></div>
-        <div class="setting-grid">
+        <div class="linked-fields" role="group" aria-label="停損距離與價格雙向連動"><div class="linked-heading"><span>停損設定</span><span>⇄ 雙向連動</span></div><div class="setting-grid">
           <div><div class="field-label"><label for="stop">價格停損距離</label><span class="tooltip"><button type="button" class="help-icon" aria-label="價格停損距離說明" aria-describedby="stop-help">?</button><span class="tooltip-text" id="stop-help" role="tooltip" hidden>兩欄連動，以最後修改欄位為準。這裡的％是幣價變動，與總資金風險不同。</span></span></div><div class="input-wrap small"><input id="stop" type="number" inputmode="decimal" min="0" max="99.99" step="any" value="2" required aria-describedby="stop-help"><span>%</span></div></div>
           <div><label for="stop-price">停損價格</label><div class="input-wrap small"><input id="stop-price" type="number" inputmode="decimal" min="0" step="any" value="" required aria-describedby="stop-help"><span>USDT</span></div></div>
-        </div>
+        </div></div>
         <div class="field"><div class="field-label"><label for="rr">盈虧比 RR（價格）</label><span class="tooltip"><button type="button" class="help-icon" aria-label="盈虧比 RR 說明" aria-describedby="rr-help">?</button><span class="tooltip-text" id="rr-help" role="tooltip" hidden>做多須 &gt; 2；做空須 ≥ 1。RR = 停利距離 ÷ 停損距離，費用後 RR 另列。</span></span></div><div class="input-wrap small"><input id="rr" type="number" inputmode="decimal" min="0" step="any" value="3" required aria-describedby="rr-help"><span>倍</span></div></div>
         <div class="form-divider"></div>
         <div class="field-label"><label for="capital">持有總金額</label><span class="tooltip"><button type="button" class="help-icon" aria-label="持有總金額說明" aria-describedby="capital-tooltip">?</button><span class="tooltip-text" id="capital-tooltip" role="tooltip" hidden>這是你本帳戶錢包總資金。</span></span></div><div class="input-wrap small"><input id="capital" type="number" inputmode="decimal" min="0" step="any" value="500" required aria-describedby="capital-tooltip"><span>USDT</span></div>
-        <div class="setting-grid">
+        <div class="linked-fields" role="group" aria-label="單筆風險比例與金額雙向連動"><div class="linked-heading"><span>單筆風險預算</span><span>⇄ 雙向連動</span></div><div class="setting-grid">
           <div><label for="risk">單筆總資金風險</label><div class="input-wrap small"><input id="risk" type="number" inputmode="decimal" min="0" max="100" step="any" value="2" required aria-describedby="budget-help"><span>%</span></div></div>
           <div><div class="field-label"><label for="loss-budget">單筆可承受虧損金額</label><span class="tooltip"><button type="button" class="help-icon" aria-label="單筆可承受虧損金額說明" aria-describedby="budget-help">?</button><span class="tooltip-text" id="budget-help" role="tooltip" hidden>兩欄連動，以最後修改欄位為準。金額為含下方費用與滑價假設的虧損預算。</span></span></div><div class="input-wrap small"><input id="loss-budget" type="number" inputmode="decimal" min="0" step="any" value="10" required aria-describedby="budget-help"><span>USDT</span></div></div>
-        </div>
+        </div></div>
       <div class="leverage-box">
         <div class="leverage-title"><div class="field-label"><label for="leverage">調整槓桿</label><span class="tooltip"><button type="button" class="help-icon" aria-label="調整槓桿說明" aria-describedby="leverage-help">?</button><span class="tooltip-text" id="leverage-help" role="tooltip" hidden>可選 1–100 倍。倉位固定時，提高槓桿會減少保證金、拉近強平價；超過條件會警告，不自動調低。</span></span></div><strong><output id="leverage-value">20</output><small> ×</small></strong></div>
         <input id="leverage" type="range" min="1" max="100" step="1" value="20" aria-describedby="leverage-help leverage-guidance">
@@ -69,11 +69,11 @@
 
     </section>
   <section class="price-section panel" aria-labelledby="price-title">
-    <div class="section-heading"><div><p class="eyebrow">EXIT MAP</p><h2 id="price-title">做多 · 出場價位</h2></div><span class="math-context">線性價格軸 · 等比例</span></div>
+    <div class="section-heading"><div><p class="eyebrow">EXIT MAP</p><h2 id="price-title">做多 · 出場價位</h2></div><span class="math-context">垂直價格軸 · 點位等比例<br>高價在上 · 標籤以連線對應</span></div>
+    <div class="exit-position"><span>投入保證金 <strong id="exit-margin" data-output>—</strong><small> U</small></span><span>槓桿 <strong id="exit-leverage" data-output>—</strong></span></div>
     <p class="chart-empty" id="map-empty">輸入入場價格，查看停損、停利與估算強平位置。</p>
-    <div id="price-axis" class="price-axis" role="img" aria-label="待輸入價格"></div>
-    <div id="price-map" class="price-map" role="img" aria-label="出場價位示意"></div>
-    <p id="liquidation-gap" class="help">—</p>
+    <div class="exit-layout"><div id="price-map" class="price-map" role="group" aria-label="出場價位"></div><div id="price-axis" class="price-axis" role="img" aria-label="待輸入價格"></div></div>
+    <span id="liquidation-gap" class="tooltip-text" role="tooltip" hidden>—</span>
   </section>
   <section class="funding-section panel" aria-labelledby="funding-title">
     <div class="section-heading"><div><p class="eyebrow">CAPITAL ALLOCATION</p><h2 id="funding-title">這筆交易，占用多少資金？</h2></div><span class="step-tag">USDT</span></div>
@@ -92,14 +92,14 @@
   </section>
     </div>
   </div>
-  <section class="math-section" aria-labelledby="math-title">
-    <div class="section-heading"><h2 id="math-title">這筆怎麼算</h2><span class="math-context">先算風險，再算倉位與保證金</span></div>
+  <details class="math-section" aria-labelledby="math-title">
+    <summary class="section-heading"><h2 id="math-title">這筆怎麼算</h2><span class="math-summary"><span class="math-context">先算風險，再算倉位與保證金</span><span class="chevron" aria-hidden="true">⌄</span></span></summary>
     <div class="math-grid">
       <article><span class="math-number">01</span><h3>可承受虧損</h3><p>總資金 × 單筆風險</p><strong id="budget-equation" data-output>—</strong></article>
       <article><span class="math-number">02</span><h3>交易額</h3><p>虧損預算 ÷ 每單位倉位的停損與成本率</p><strong id="notional-equation" data-output>—</strong></article>
       <article><span class="math-number">03</span><h3>保證金</h3><p>交易額 ÷ 槓桿，並檢查資金切分上限</p><strong id="margin-equation" data-output>—</strong></article>
     </div>
-  </section>
+  </details>
   <details class="source-notes">
     <summary><span>計算定義、限制與官方依據</span><span class="chevron" aria-hidden="true">⌄</span></summary>
     <div class="source-content">

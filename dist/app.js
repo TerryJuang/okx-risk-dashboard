@@ -54,30 +54,31 @@ function renderBars(r) {
 }
 function renderPriceAxis(rows,r) {
   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-  svg.setAttribute('width','100%');svg.setAttribute('height','148');svg.setAttribute('aria-hidden','true');
+  svg.setAttribute('width','100%');svg.setAttribute('height','408');svg.setAttribute('aria-hidden','true');
   const low=rows[rows.length-1].value,high=rows[0].value;
-  const position=value=>high>low?10+(value-low)/(high-low)*80:50;
+  const position=value=>high>low?32+(high-value)/(high-low)*344:204;
   const add=(tag,attrs,text)=>{
     const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
     Object.entries(attrs).forEach(([key,value])=>el.setAttribute(key,String(value)));
     if(text!==undefined) el.textContent=text;
     svg.appendChild(el);return el;
   };
-  for(let i=0;i<=4;i++) add('line',{x1:`${10+i*20}%`,x2:`${10+i*20}%`,y1:58,y2:120,class:'axis-grid'});
+  for(let i=0;i<=4;i++) add('line',{x1:'0%',x2:'96%',y1:32+i*86,y2:32+i*86,class:'axis-grid'});
   [[r.stopPrice,'stop'],[r.takePrice,'take']].forEach(([value,kind])=>
-    add('rect',{x:`${Math.min(position(value),position(r.entry))}%`,y:84,width:`${Math.abs(position(value)-position(r.entry))}%`,height:28,class:`axis-zone ${kind}`}));
-  add('line',{x1:'10%',x2:'90%',y1:98,y2:98,class:'axis-line'});
-  [...rows].reverse().forEach((row,i)=>{
-    const x=position(row.value),labelX=12.5+i*25;
-    add('text',{x:`${labelX}%`,y:25,'text-anchor':'middle',class:`axis-label ${row.kind}`},row.name);
-    add('line',{x1:`${labelX}%`,x2:`${x}%`,y1:36,y2:84,class:`axis-leader ${row.kind}`});
-    add('line',{x1:`${x}%`,x2:`${x}%`,y1:84,y2:112,class:`axis-marker ${row.kind}`});
-    add('circle',{cx:`${x}%`,cy:98,r:4,class:`axis-dot ${row.kind}`});
+    add('rect',{x:'70%',y:Math.min(position(value),position(r.entry)),width:'20%',height:Math.abs(position(value)-position(r.entry)),class:`axis-zone ${kind}`}));
+  add('line',{x1:'80%',x2:'80%',y1:32,y2:376,class:'axis-line'});
+  rows.forEach((row,i)=>{
+    const y=position(row.value),labelY=48+i*104;
+    add('line',{x1:'0%',x2:'18%',y1:labelY,y2:labelY,class:`axis-leader ${row.kind}`});
+    add('line',{x1:'18%',x2:'62%',y1:labelY,y2:y,class:`axis-leader ${row.kind}`});
+    add('line',{x1:'62%',x2:'80%',y1:y,y2:y,class:`axis-leader ${row.kind}`});
+    add('line',{x1:'70%',x2:'90%',y1:y,y2:y,class:`axis-marker ${row.kind}`});
+    add('circle',{cx:'80%',cy:y,r:4,class:`axis-dot ${row.kind}`});
   });
-  add('text',{x:'10%',y:140,'text-anchor':'start',class:'axis-end'},price(low));
-  add('text',{x:'90%',y:140,'text-anchor':'end',class:'axis-end'},price(high));
+  add('text',{x:'80%',y:16,'text-anchor':'middle',class:'axis-end'},'高');
+  add('text',{x:'80%',y:402,'text-anchor':'middle',class:'axis-end'},'低');
   $('price-axis').replaceChildren(svg);
-  $('price-axis').setAttribute('aria-label',`價格由左至右遞增，等比例顯示。${rows.map(x=>`${x.name} ${price(x.value)} USDT`).join('，')}`);
+  $('price-axis').setAttribute('aria-label',`高價在上、低價在下，點位等比例顯示；標籤以連線避讓。${rows.map(x=>`${x.name} ${price(x.value)} USDT`).join('，')}`);
   $('map-empty').hidden=true;
 }
 function renderMap(r) {
@@ -91,8 +92,15 @@ function renderMap(r) {
     const el=document.createElement('div');el.className=`price-row ${row.kind}`;
     const label=document.createElement('span');label.className='price-name';label.textContent=row.name;
     const value=document.createElement('strong');value.textContent=price(row.value);
+    const valueGroup=document.createElement('div');valueGroup.className='price-value';valueGroup.appendChild(value);
+    if(row.kind==='stop') {
+      const wrapper=document.createElement('span');wrapper.className='tooltip';
+      const trigger=document.createElement('button');trigger.type='button';trigger.className='help-icon';trigger.textContent='?';
+      trigger.setAttribute('aria-label','停損與預估強平距離說明');trigger.setAttribute('aria-describedby','liquidation-gap');
+      wrapper.appendChild(trigger);valueGroup.appendChild(wrapper);
+    }
     const detail=document.createElement('small');detail.textContent=row.detail;
-    el.append(label,value,detail);$('price-map').appendChild(el);
+    el.append(label,valueGroup,detail);$('price-map').appendChild(el);
   });
   $('price-map').setAttribute('aria-label',rows.map(x=>`${x.name} ${price(x.value)} USDT`).join('，'));
   $('price-title').textContent=`${r.side==='long'?'做多':'做空'} · 出場價位（USDT）`;
@@ -130,7 +138,8 @@ function render() {
   $('result-badge').textContent=r.ready?'符合試算條件 · 待核對 OKX':'未符合開單條件';
   $('result-badge').classList.toggle('capped',!r.ready);
   const outputs={notional:fmt(r.notional),margin:fmt(r.margin),'equation-leverage':r.leverage+'×','equation-notional':fmt(r.notional),
-    'planned-loss':fmt(r.plannedLoss,4),'planned-profit':fmt(r.plannedProfit,4),'rr-result':`${compact(r.rr)} / ${fmt(r.netRR,3)}`,'liquidation-result':price(r.liquidation),
+    'planned-loss':fmt(r.plannedLoss,3),'planned-profit':fmt(r.plannedProfit,3),'rr-result':`${compact(r.rr)} / ${fmt(r.netRR,3)}`,'liquidation-result':price(r.liquidation),
+    'exit-margin':fmt(r.margin),'exit-leverage':r.leverage+'×',
     'budget-equation':`${compact(r.capital)} × ${compact(r.risk)}% = ${compact(r.budget)} U`,
     'notional-equation':`${compact(r.budget)} ÷ ${fmt(r.lossRate*100,5)}% ≈ ${fmt(r.targetNotional)} U（上限前）`,
     'margin-equation':`${fmt(r.notional)} ÷ ${r.leverage} ≈ ${fmt(r.margin)} U`};
