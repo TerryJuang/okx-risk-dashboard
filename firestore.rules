@@ -75,7 +75,7 @@ service cloud.firestore {
         d.createdAt is timestamp && d.updatedAt==request.time && integer(d.authTime,1,99999999999) &&
         clientTime(d.clientSavedAt) && clientTime(d.editStartedAt) && clientTime(d.clientEditedAt) &&
         d.editStartedAt<=d.clientEditedAt && d.clientEditedAt<=d.clientSavedAt && str(d.timeZone,1,100) &&
-        (!checkPlan || validSnapshot(d.current)) && str(d.strategy,0,120) && str(d.notes,0,4000) &&
+        (!checkPlan || certifiedPlan(d,uid)) && str(d.strategy,0,120) && str(d.notes,0,4000) &&
         validTotals(d.totals) && d.trashed is bool && (d.trashed? d.deletedAt is timestamp : d.deletedAt==null) &&
         integer(d.revision,0,1000000) && str(d.mutationId,20,64) && d.mutationId.matches('^[A-Za-z0-9-]+$') &&
         ((d.actual==null && d.status in ['planned','cancelled'] && d.totals=={'quantity':0,'gross':0,'fees':0,'count':0}) ||
@@ -142,6 +142,25 @@ service cloud.firestore {
         d.executedAt>=after.actual.openedAt && after.revision==before.revision+1 &&
         after.mutationId==d.mutationId && rev.closeId==cid && rev.close==d && totalsDelta(uid,id,after,before.totals);
     }
+
+    // Validate all 16 inputs once in an immutable private snapshot document.
+    // Record/audit transactions refer to this committed certificate instead of re-running
+    // the same expensive bounds within a multi-document request.
+    function validPlanCertificate(d,uid) {
+      return keys(d,['ownerUid','createdAt','authTime','snapshot']) && d.ownerUid==uid &&
+        d.createdAt==request.time && d.authTime==request.auth.token.auth_time &&
+        validSnapshot(d.snapshot);
+    }
+    function certifiedPlan(d,uid) {
+      let p=get(/databases/$(database)/documents/users/$(uid)/plans/$(d.mutationId)).data;
+      return p.ownerUid==uid && p.snapshot==d.current;
+    }
+    match /users/{uid}/plans/{planId} {
+      allow read: if permitted(uid);
+      allow create: if permitted(uid) && validPlanCertificate(request.resource.data,uid);
+      allow update,delete: if false;
+    }
+
     match /journalAccess/{uid} {
       allow get: if isOwner(uid);
       allow list,create,update,delete: if false;
@@ -155,7 +174,7 @@ service cloud.firestore {
         request.resource.data.actual==null && !request.resource.data.trashed &&
         revisionAfter(uid,id,request.resource.data);
       allow update: if permitted(uid) && validTrade(request.resource.data,uid,false) &&
-        (request.resource.data.current==resource.data.current || validSnapshot(request.resource.data.current)) && immutableTrade() && validTotalsChange(uid,id,request.resource.data) &&
+        (request.resource.data.current==resource.data.current || certifiedPlan(request.resource.data,uid)) && immutableTrade() && validTotalsChange(uid,id,request.resource.data) &&
         request.resource.data.revision==resource.data.revision+1 &&
         (resource.data.actual==null || request.resource.data.current==resource.data.current) &&
         (!resource.data.trashed || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['trashed','deletedAt','updatedAt','revision','mutationId'])) &&

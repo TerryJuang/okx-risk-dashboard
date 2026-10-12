@@ -26,6 +26,7 @@ async function create(db=alice,patch={},uid='alice',id=randomUUID()) {
  const r={...record(uid,id),...patch},b=writeBatch(db),tr=ref(db,id,uid);
  if(typeof r.current.result!=='string')r.current=encodePlan(r.current);
  if(typeof r.original.result!=='string')r.original=encodePlan(r.original);
+ await setDoc(doc(db,'users',uid,'plans',r.mutationId),{ownerUid:uid,createdAt:serverTimestamp(),authTime,snapshot:r.current});
  b.set(tr,r);b.set(doc(tr,'revisions',r.mutationId),{record:r,at:serverTimestamp(),authTime,closeId:'',close:null});
  await b.commit();return id;
 }
@@ -47,17 +48,8 @@ beforeEach(async()=>{
  await env.clearFirestore();alice=env.authenticatedContext('alice',claims).firestore();bob=env.authenticatedContext('bob',claims).firestore();unknown=env.authenticatedContext('unknown',claims).firestore();
  await env.withSecurityRulesDisabled(async context=>{await setDoc(doc(context.firestore(),'journalAccess','alice'),{enabled:true});await setDoc(doc(context.firestore(),'journalAccess','bob'),{enabled:true});});
 });
-after(async()=>{
- try {
-  const response=await fetch('http://127.0.0.1:8080/emulator/v1/projects/'+projectId+':ruleCoverage');
-  const report=await response.json();
-  console.log('RULE_COVERAGE_TOP',JSON.stringify(Object.keys(report)));
-  const file=report?.rules?.files?.[0]||report?.files?.[0];
-  console.log('RULE_COVERAGE_FILE_KEYS',JSON.stringify(Object.keys(file||{})));
-  console.log('RULE_COVERAGE_SAMPLE',JSON.stringify(report.report).slice(0,5000));
- }catch(error){console.log('RULE_COVERAGE_ERROR',error.message);}
- await env?.cleanup();
-});
+after(async()=>{await env?.cleanup();});
+
 test('valid atomic creation, own read and production list query succeed',async()=>{
  const id=await assertSucceeds(create());
  await assertSucceeds(getDoc(ref(alice,id)));
@@ -215,21 +207,3 @@ test('production journal API transactions preserve idempotency, revisions, entry
  }finally{unlinkSync(output);delete globalThis.__journalTest;delete globalThis.sessionStorage;}
 });
 
-test('isolate rule expression cost by validator in the demo emulator',async()=>{
- const original=readFileSync('firestore.rules','utf8');
- const replacements=[
- ['snapshot',/function validSnapshot\(d\) \{[\s\S]*?\n    \}/,'function validSnapshot(d) { return true; }'],
- ['result',/function validResult\(d\) \{[^\n]+/,'function validResult(d) { return true; }'],
- ['raw',/function validRaw\(d\) \{[^\n]+/,'function validRaw(d) { return true; }'],
- ['inputs',/function validInputs\(d\) \{[\s\S]*?\n    function validRaw/,'function validInputs(d) { return true; }\n    function validRaw'],
- ['trade',/function validTrade\(d,uid,checkPlan\) \{[\s\S]*?\n    \}/,'function validTrade(d,uid,checkPlan) { return true; }']
- ];
- for(const [name,regex,replacement] of replacements) {
-  try {
-   const alternate=original.replace(regex,replacement);
-   await initializeTestEnvironment({projectId,firestore:{rules:alternate,host:'127.0.0.1',port:8080}});
-   await create();console.log('BUDGET_DIAGNOSTIC',name,'PASS');
-  }catch(error){console.log('BUDGET_DIAGNOSTIC',name,'FAIL',String(error.message).slice(0,300));}
- }
- await initializeTestEnvironment({projectId,firestore:{rules:original,host:'127.0.0.1',port:8080}});
-});

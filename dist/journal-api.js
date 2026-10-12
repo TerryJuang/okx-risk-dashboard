@@ -79,8 +79,19 @@ function revision(ref,id,record,loginTime,changedClose=null) {
   return {ref:doc(collection(ref,'revisions'),id),value:{record,at:serverTimestamp(),authTime:loginTime,
     closeId:changedClose?changedClose.id:'',close:changedClose?plain(changedClose):null}};
 }
+
+async function certifyPlan(plan,id,loginTime) {
+  const uid=requireUser().uid,ref=doc(db,'users',uid,'plans',id);
+  await runTransaction(db,async tx=>{
+    const previous=await tx.get(ref);
+    if(previous.exists())return;
+    tx.set(ref,{ownerUid:uid,createdAt:serverTimestamp(),authTime:loginTime,snapshot:plan});
+  });
+}
+
 export async function createTrade(snapshot,metadata,id) {
   const ref=tradeRef(id),uid=requireUser().uid,loginTime=await authTime(),plan=encodePlan(snapshot);
+  await certifyPlan(plan,id,loginTime);
   return runTransaction(db,async tx=>{
     const existing=await tx.get(ref);if(existing.exists())return id;
     const record={schemaVersion:1,appVersion:'journal-v1',ownerUid:uid,createdAt:serverTimestamp(),updatedAt:serverTimestamp(),
@@ -111,7 +122,8 @@ async function mutate(id,expectedRevision,opId,transform,closeId=null) {
     const rev=revision(ref,opId,record,loginTime,changed);tx.set(rev.ref,rev.value);return id;
   });
 }
-export function updatePlan(id,expected,opId,snapshot,strategy,notes) {
+export async function updatePlan(id,expected,opId,snapshot,strategy,notes) {
+  await certifyPlan(encodePlan(snapshot),opId,await authTime());
   return mutate(id,expected,opId,old=>{
     if(old.trashed)throw new Error('請先從垃圾桶還原。');
     if(old.actual)throw new Error('已成交紀錄保留原交易計畫；請在紀錄管理修改實際成交資料。');
