@@ -4,6 +4,10 @@
 以虧損預算與停損距離推算名目倉位，調整槓桿查看保證金與估算強平價。
 不連接帳戶、不抓即時行情、不執行交易。
 
+**正式網站：[開單風險試算](https://terryjuang.github.io/okx-risk-dashboard/)**
+
+2026-10-12 已發布；[首次部署紀錄](https://github.com/TerryJuang/okx-risk-dashboard/actions/runs/38207975318) 的 51 項測試及部署皆成功。
+
 ## 開啟與測試
 
 直接以瀏覽器開啟 `dist/index.html` 即可使用，不需要 npm install 或建置。
@@ -27,9 +31,9 @@ node --test tests/*.test.cjs
 
 ## GitHub Pages
 
-完成儲存庫初始化後，在 Settings → Pages → Build and deployment 選擇 **GitHub Actions**。
+Settings → Pages → Build and deployment 已選擇 **GitHub Actions**，HTTPS 已啟用。
 `.github/workflows/pages.yml` 會在 main 更新時先測試，再發布 `dist/`；PR 只跑測試，不部署。
-尚未完成 Pages 設定或 workflow 成功之前，不能將預計網址視為已上線。
+日後更新程式後，在 Actions 查看綠色成功狀態，再確認正式網站。
 
 原 Sites 部署設定 `.openai/hosting.json` 保留供舊站復原；GitHub Pages 不讀取這個檔案。
 
@@ -48,7 +52,19 @@ node --test tests/*.test.cjs
 本地回復標記：`backup/v5-before-dashboard-20261012`。
 GitHub 舊版備份分支：[`backup/v5-before-dashboard-20261012`](https://github.com/TerryJuang/okx-risk-dashboard/tree/backup/v5-before-dashboard-20261012)。備份的完整 Git tree 與原始 v5 完全一致。
 
-如需復原，從備份建立復原分支，恢復 `dist/` 後跑測試並以新 commit 發布；不要 hard reset 或強制覆蓋他人的修改。
+如需復原，在最新 main 上建立復原分支，還原舊版 `dist/` 與對應 UI 測試；保留 36 項固定計算基準及 Pages workflow。以下步驟需在乾淨工作目錄執行：
+
+```bash
+git fetch origin
+git switch -c restore-v5 origin/main
+git restore --source=origin/backup/v5-before-dashboard-20261012 -- dist tests/risk.test.cjs
+node --test tests/*.test.cjs
+git add dist tests/risk.test.cjs
+git commit -m "Restore v5 UI with original calculation rules"
+git push -u origin restore-v5
+```
+
+接著在 GitHub 建立 Pull Request 合併至 main，通過測試後自動發布。復原組合已實際驗證 48 項測試通過（原版 12 項＋固定基準 36 項）；不要 hard reset 或強制覆蓋他人的修改。
 
 ## 相依與授權
 

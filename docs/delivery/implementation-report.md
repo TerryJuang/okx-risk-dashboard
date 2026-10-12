@@ -48,14 +48,32 @@ CI 使用以下官方 Actions，皆已讀取其 LICENSE，為 MIT：
 
 這些 Actions 僅用於 CI，不載入使用者瀏覽器；本次未複製其套件程式碼。
 
+## GitHub 發布結果
+
+- 正式網站：https://terryjuang.github.io/okx-risk-dashboard/
+- 公開原始碼：https://github.com/TerryJuang/okx-risk-dashboard
+- 首次部署：https://github.com/TerryJuang/okx-risk-dashboard/actions/runs/38207975318
+- 首次發布 commit：`8a9bd3f2a022d3922dbbf084e4873e902540f83d`。
+- GitHub CI 的 51 項測試、JavaScript 語法檢查與 Pages 部署均成功；已讀取執行紀錄確認 51 pass / 0 fail。
+- Pages 來源為 GitHub Actions，HTTPS 已啟用；只發布 `dist/`。
+- 舊版分支：`backup/v5-before-dashboard-20261012`，commit `23a4e3042715c34ff92f165e16a6cece0cb2239b`。其 Git tree `b083abb9f4299515e7d23200402aa6d3270b3eac` 與原 Sites v5 完全一致；跨平台匯入造成 commit ID 不同，檔案內容相同。
+- 原 Sites 第 5 版繼續保留，未重新部署或覆蓋。
+
+正式網址已以瀏覽器開啟。初始價格空白；填入範例入場價 2500 後，做多／停損 2%／RR 3／資金 500／風險 2%／槓桿 20 倍顯示：倉位 465.33 U、保證金 23.27 U、虧損 9.9998 U、獲利 27.2080 U、停損 2450、停利 2650、估算強平 2388.134741。這是發布後單一桌面情境的顯示確認。
+
+## 重要畫面比較
+
+| 舊版 v5 | GitHub Pages 新版 |
+| --- | --- |
+| ![舊版初始畫面](../audit/before-v5.png) | ![新版範例試算](after-dashboard.jpg) |
+
+兩張都是真實畫面；舊版為 1200×750 初始空值，新版為 1348×926、入場價 2500 的範例。因視窗與輸入狀態不同，僅供版面比較，不作像素或計算回歸判定。
+
 ## 尚未驗證／交付限制
 
-目前沒有 Sites skill 所需的 control-browser，依該 skill 未啟動預覽伺服器、未另裝瀏覽器，未執行真實瀏覽器 hover、鍵盤或跨裝置視覺驗收。
-響應式樣式已實作；不能據此宣稱桌面、平板、手機均已實機通過。
-舊版畫面為 `../audit/before-v5.png`；修改後真實截圖及前後並排比較尚待瀏覽器驗證，沒有使用模擬圖充當截圖。
-GitHub 登入已完成，公開儲存庫：https://github.com/TerryJuang/okx-risk-dashboard 。舊版已存入 `backup/v5-before-dashboard-20261012` 分支（commit `23a4e3042715c34ff92f165e16a6cece0cb2239b`）；其 Git tree `b083abb9f4299515e7d23200402aa6d3270b3eac` 與原 Sites v5 完全一致。Pages 正在設定及驗證，部署結果以 Actions 成功紀錄為準。原 Sites 第 5 版保留在線。
+開發時沒有 Sites skill 所需的 control-browser，未啟動預覽伺服器或另裝瀏覽器。發布後已完成上述單一桌面情境與畫面確認；完整 hover、鍵盤、平板與手機實機驗收尚未完成。響應式樣式已實作，不能據此宣稱所有裝置均已通過。
 
 ## 復原
 
 已保存的 Sites v5：`appgprj_6abe1c25d4a48191b1059a7e03069927~appgver_98eca4d60f78819189eecfe5f494c9a0`。
-如改版有問題，舊站仍可使用；GitHub 上以備份分支的 `dist/` 建立新的復原 commit，通過測試後再發布。避免刪除歷史或強制 reset。
+如改版有問題，舊站仍可使用；GitHub 上由最新 main 建立復原分支，從 v5 備份還原 `dist/` 及 `tests/risk.test.cjs`，保留固定計算基準與 Pages workflow。此組合已在獨立暫存目錄實際執行，48 項測試通過。完整指令見 README；以新 commit／PR 復原，避免刪除歷史或強制 reset。
