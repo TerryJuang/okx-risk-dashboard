@@ -47,7 +47,17 @@ beforeEach(async()=>{
  await env.clearFirestore();alice=env.authenticatedContext('alice',claims).firestore();bob=env.authenticatedContext('bob',claims).firestore();unknown=env.authenticatedContext('unknown',claims).firestore();
  await env.withSecurityRulesDisabled(async context=>{await setDoc(doc(context.firestore(),'journalAccess','alice'),{enabled:true});await setDoc(doc(context.firestore(),'journalAccess','bob'),{enabled:true});});
 });
-after(async()=>{await env?.cleanup();});
+after(async()=>{
+ try {
+  const response=await fetch('http://127.0.0.1:8080/emulator/v1/projects/'+projectId+':ruleCoverage');
+  const report=await response.json();
+  console.log('RULE_COVERAGE_TOP',JSON.stringify(Object.keys(report)));
+  const file=report?.rules?.files?.[0]||report?.files?.[0];
+  console.log('RULE_COVERAGE_FILE_KEYS',JSON.stringify(Object.keys(file||{})));
+  console.log('RULE_COVERAGE_SAMPLE',JSON.stringify(report).slice(0,1600));
+ }catch(error){console.log('RULE_COVERAGE_ERROR',error.message);}
+ await env?.cleanup();
+});
 test('valid atomic creation, own read and production list query succeed',async()=>{
  const id=await assertSucceeds(create());
  await assertSucceeds(getDoc(ref(alice,id)));
