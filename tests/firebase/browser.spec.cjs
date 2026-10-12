@@ -52,13 +52,13 @@ for(const size of [{width:1440,height:1000},{width:768,height:1024},{width:390,h
   await page.getByRole('link',{name:'開啟這筆紀錄'}).click();
   await expect(page.locator('#detail-title')).toContainText('ETH-USDT-SWAP');
   await page.locator('#actual-price').fill('100');await page.locator('#actual-quantity').fill('10');
-  await page.locator('#actual-time').fill('2026-01-01T10:00:00');
+  await page.locator('#actual-time').fill('2026-01-01T10:00');
   await page.locator('#actual-margin').fill('100');await page.locator('#actual-fee').fill('1');await page.locator('#actual-funding').fill('-0.5');
   await page.getByRole('button',{name:'確認已成交並保存'}).click();
   await expect(page.locator('#detail-title')).toContainText('持倉中');
   async function close(price,quantity,fee,reason){
    await page.locator('#close-price').fill(price);await page.locator('#close-quantity').fill(quantity);
-   await page.locator('#close-time').fill('2026-01-02T10:00:00');await page.locator('#close-fee-actual').fill(fee);
+   await page.locator('#close-time').fill('2026-01-02T10:00');await page.locator('#close-fee-actual').fill(fee);
    await page.locator('#close-reason').fill(reason);await page.getByRole('button',{name:'保存這次平倉'}).click();
   }
   await close('110','4','0.4','部分止盈');await expect(page.locator('#detail-title')).toContainText('部分平倉');

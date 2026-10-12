@@ -148,3 +148,9 @@ test('trash is restorable, edits while trashed and permanent deletion are denied
  await assertFails(change(alice,id,{notes:'forbidden while trashed'}));await assertFails(deleteDoc(ref(alice,id)));
  await assertSucceeds(change(alice,id,{trashed:false,deletedAt:null}));
 });
+
+test('a matching revision cannot hide a close quantity change while leaving aggregate totals unchanged',async()=>{
+ const id=await create();await change(alice,id,{actual:actual(),status:'open'});
+ const fill={price:110,quantity:4,fee:.4,executedAt:Timestamp.fromMillis(Date.UTC(2026,0,2)),reason:'take',note:'',deleted:false};
+ await assertFails(change(alice,id,{}, {close:fill}));
+});
