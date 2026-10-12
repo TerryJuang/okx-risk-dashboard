@@ -73,3 +73,9 @@ body{background:radial-gradient(ellipse at 85% 0,#18223055,transparent 45%),var(
 .math-summary{display:flex;align-items:center;gap:12px}
 @media(max-width:1099px){.exit-layout{grid-template-columns:minmax(0,1fr) 80px}.exit-layout .price-row{padding:8px 10px}}
 @media(max-width:420px){.exit-layout{grid-template-columns:minmax(0,1fr) 60px}.exit-layout .price-row{padding:8px}.exit-layout .price-row strong{font-size:1rem}.exit-position{padding:10px;gap:6px 14px}.exit-position strong{font-size:1rem}.math-summary .math-context{max-width:150px}}
+
+/* Timeframe metadata controls; financial calculation inputs stay independent. */
+.timeframe-field{margin-bottom:18px}
+.input-wrap select{width:100%;min-width:0;border:0;background:transparent;color:var(--text);font:500 .875rem var(--font);outline:0;cursor:pointer}
+.input-wrap select option{background:var(--panel);color:var(--text)}
+.timeframe-error{color:var(--warn)}

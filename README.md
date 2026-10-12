@@ -58,6 +58,7 @@ GitHub 舊版備份分支：[`backup/v5-before-dashboard-20261012`](https://gith
 git fetch origin
 git switch -c restore-v5 origin/main
 git restore --source=origin/backup/v5-before-dashboard-20261012 -- dist tests/risk.test.cjs
+git rm tests/tooltips.test.cjs tests/timeframe.test.cjs
 node --test tests/*.test.cjs
 git add dist tests/risk.test.cjs
 git commit -m "Restore v5 UI with original calculation rules"
@@ -71,3 +72,9 @@ git push -u origin restore-v5
 前端沒有第三方套件、CDN、字型下載或新增框架，故無新增前端套件授權。
 GitHub Actions 使用 GitHub 官方維護的 checkout、setup-node、configure-pages、upload-pages-artifact、deploy-pages，皆為 MIT 授權。
 本專案沒有另行指定開源授權；公開可見不等於授予任意使用授權。
+
+## 時間週期與交易日誌規劃
+
+時間週期選單提供 3、5、15、30 分鐘、1 小時、4 小時、1 天及其他正整數分鐘，預設請選擇。選擇週期不改變財務計算。Firebase 尚未整合，「輸出記錄」保存按鈕將待資料庫方案確認後製作。
+
+[可直接複製的 Firebase 交易日誌規劃提示詞](docs/planning/firebase-journal-prompt.md)。先規劃，不開通或寫入正式資料庫。

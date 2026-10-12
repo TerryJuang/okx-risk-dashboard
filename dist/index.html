@@ -6,7 +6,7 @@
   <meta name="description" content="OKX USDT 永續逐倉開單試算：依可承受虧損和停損距離計算交易額，拉動槓桿查看保證金、停利與預估強平價格。">
   <title>開單風險試算 · OKX 逐倉</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111512'/%3E%3Cpath d='M8 23V9h5v14zm11 0V15h5v8z' fill='%23c5f86b'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css"><script src="calculator.js" defer></script><script src="app.js" defer></script><script src="tooltips.js" defer></script>
+  <link rel="stylesheet" href="style.css"><script src="calculator.js" defer></script><script src="app.js" defer></script><script src="tooltips.js" defer></script><script src="timeframe.js" defer></script>
 </head>
 <body>
 <main class="shell">
@@ -17,6 +17,8 @@
       <div class="section-heading"><h2 id="input-title">設定這筆交易</h2><span class="step-tag">01 / INPUT</span></div>
       <form id="risk-form" novalidate>
         <fieldset class="direction"><legend>交易方向</legend><button type="button" data-side="long" aria-pressed="true"><svg class="direction-icon" viewBox="0 0 32 32" aria-hidden="true"><path class="direction-bars" d="M5 25v-5m7 5V15m7 10V10m7 15V5"/><path d="m4 18 8-7 6 3L28 4m-7 0h7v7"/></svg><span>做多</span></button><button type="button" data-side="short" aria-pressed="false"><svg class="direction-icon" viewBox="0 0 32 32" aria-hidden="true"><path class="direction-bars" d="M5 7v18m7-12v12m7-7v7m7-2v2"/><path d="m4 5 8 7 6-3 10 17m-7 0h7v-7"/></svg><span>做空</span></button></fieldset>
+        <div class="field timeframe-field"><label for="timeframe">時間週期</label><div class="input-wrap small"><select id="timeframe" aria-controls="custom-timeframe-field"><option value="" selected>請選擇</option><option value="3">3 分鐘</option><option value="5">5 分鐘</option><option value="15">15 分鐘</option><option value="30">30 分鐘</option><option value="60">1 小時</option><option value="240">4 小時</option><option value="1440">1 天</option><option value="other">其他</option></select></div></div>
+        <div class="field" id="custom-timeframe-field" hidden><label for="custom-timeframe">其他週期（分鐘）</label><div class="input-wrap small"><input id="custom-timeframe" type="number" inputmode="numeric" min="1" step="1" value="" disabled aria-describedby="timeframe-error"><span>分</span></div><p id="timeframe-error" class="help timeframe-error" role="status" hidden></p></div>
         <div class="field"><label for="entry">入場價格</label><div class="input-wrap"><input id="entry" type="number" inputmode="decimal" min="0" step="any" value="" required><span>USDT</span></div></div>
         <div class="linked-fields" role="group" aria-label="停損距離與價格雙向連動"><div class="linked-heading"><span>停損設定</span><span>⇄ 雙向連動</span></div><div class="setting-grid">
           <div><div class="field-label"><label for="stop">價格停損距離</label><span class="tooltip"><button type="button" class="help-icon" aria-label="價格停損距離說明" aria-describedby="stop-help">?</button><span class="tooltip-text" id="stop-help" role="tooltip" hidden>兩欄連動，以最後修改欄位為準。這裡的％是幣價變動，與總資金風險不同。</span></span></div><div class="input-wrap small"><input id="stop" type="number" inputmode="decimal" min="0" max="99.99" step="any" value="2" required aria-describedby="stop-help"><span>%</span></div></div>
