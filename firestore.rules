@@ -22,18 +22,23 @@ service cloud.firestore {
       return isOwner(uid) && get(/databases/$(database)/documents/journalAccess/$(uid)).data.enabled==true;
     }
     function clientTime(t) { return t is timestamp && t>=timestamp.date(2009,1,1) && t<=request.time+duration.value(5,'m'); }
-    function validInputs(d) { return keys(d,["entry","capital","risk","stop","rr","splitCount","mmr","maxLeverage","openFee","closeFee","slippage","buffer","leverage","side"]) && finite(d.entry,0,1000000000000) && d.entry>0 &&
-        finite(d.capital,0,1000000000000) && d.capital>0 &&
-        finite(d.risk,0,100) && d.risk>0 &&
-        finite(d.stop,0,100) && d.stop>0 &&
-        finite(d.rr,0,1000) && d.rr>0 &&
-        finite(d.mmr,0,50) &&
-        finite(d.openFee,0,5) &&
-        finite(d.closeFee,0,5) &&
-        finite(d.slippage,0,10) &&
-        finite(d.buffer,0,500) &&
-        d.stop<100 && d.side in ['long','short'] && integer(d.splitCount,1,1000) &&
-        integer(d.leverage,1,100) && integer(d.maxLeverage,1,100); }
+    function validInputs(d) {
+      return keys(d,["entry","capital","risk","stop","rr","mmr","openFee","closeFee","slippage","buffer","splitCount","maxLeverage","leverage","side"]) &&
+        d.entry is number && d.entry>0 && d.entry<=1000000000000 &&
+        d.capital is number && d.capital>0 && d.capital<=1000000000000 &&
+        d.risk is number && d.risk>0 && d.risk<=100 &&
+        d.stop is number && d.stop>0 && d.stop<100 &&
+        d.rr is number && d.rr>0 && d.rr<=1000 &&
+        d.mmr is number && d.mmr>=0 && d.mmr<=50 &&
+        d.openFee is number && d.openFee>=0 && d.openFee<=5 &&
+        d.closeFee is number && d.closeFee>=0 && d.closeFee<=5 &&
+        d.slippage is number && d.slippage>=0 && d.slippage<=10 &&
+        d.buffer is number && d.buffer>=0 && d.buffer<=500 &&
+        d.splitCount is int && d.splitCount>=1 && d.splitCount<=1000 &&
+        d.leverage is int && d.leverage>=1 && d.leverage<=100 &&
+        d.maxLeverage is int && d.maxLeverage>=1 && d.maxLeverage<=100 &&
+        d.side in ['long','short'];
+    }
     // Canonical JSON validates every key and primitive type in one bounded RE2 match.
     function validRaw(d) { return d is string && d.size()<=2000 && d.matches("^\\{\"entry\":\"[0-9eE+.-]{1,100}\",\"capital\":\"[0-9eE+.-]{1,100}\",\"risk\":\"[0-9eE+.-]{1,100}\",\"stop\":\"[0-9eE+.-]{1,100}\",\"rr\":\"[0-9eE+.-]{1,100}\",\"splitCount\":\"[0-9eE+.-]{1,100}\",\"mmr\":\"[0-9eE+.-]{1,100}\",\"maxLeverage\":\"[0-9eE+.-]{1,100}\",\"openFee\":\"[0-9eE+.-]{1,100}\",\"closeFee\":\"[0-9eE+.-]{1,100}\",\"slippage\":\"[0-9eE+.-]{1,100}\",\"buffer\":\"[0-9eE+.-]{1,100}\",\"leverage\":\"[0-9eE+.-]{1,100}\",\"side\":\"(?:long|short)\",\"stop-price\":\"[0-9eE+.-]{1,100}\",\"loss-budget\":\"[0-9eE+.-]{1,100}\"\\}$"); }
     // Two full-schema matches validate alternating numeric fields within RE2 size/group limits.
