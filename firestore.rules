@@ -1,0 +1,178 @@
+rules_version = '2';
+// Prototype rules. Default deny. Journal values are user-entered, not exchange-certified.
+// journalAccess/{uid}: enabled bool, maintained ONLY through trusted Firebase administration.
+// users/{uid}/trades/{id}: typed immutable original plan + editable current plan and actual entry,
+// aggregate close totals, soft-deletion flags, immutable server creation time and increasing revision.
+// trades/{id}/closes/{id}: individual executions, typed and soft deleted, immutable creation time.
+// trades/{id}/revisions/{operationId}: immutable post-write trade and changed close, atomically
+// bound by getAfter(). All mutable writes must include their matching revision.
+// No public reads, cross-account access, client self-enrolment, or permanent deletes.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function keys(d,k) { return d is map && d.keys().hasAll(k) && d.keys().hasOnly(k); }
+    function str(v,lo,hi) { return v is string && v.size()>=lo && v.size()<=hi; }
+    function finite(v,lo,hi) { return v is number && v>=lo && v<=hi; }
+    function integer(v,lo,hi) { return v is int && v>=lo && v<=hi; }
+    function isAuthenticated() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider=='google.com' &&
+        request.auth.token.email_verified==true;
+    }
+    function isOwner(uid) { return isAuthenticated() && request.auth.uid==uid; }
+    function permitted(uid) {
+      return isOwner(uid) && get(/databases/$(database)/documents/journalAccess/$(uid)).data.enabled==true;
+    }
+    function clientTime(t) { return t is timestamp && t>=timestamp.date(2009,1,1) && t<=request.time+duration.value(5,'m'); }
+    function validInputs(d) { return keys(d,["entry","capital","risk","stop","rr","splitCount","mmr","maxLeverage","openFee","closeFee","slippage","buffer","leverage","side"]) && finite(d.entry,0,1000000000000) && d.entry>0 &&
+        finite(d.capital,0,1000000000000) && d.capital>0 &&
+        finite(d.risk,0,100) && d.risk>0 &&
+        finite(d.stop,0,100) && d.stop>0 &&
+        finite(d.rr,0,1000) && d.rr>0 &&
+        finite(d.mmr,0,50) &&
+        finite(d.openFee,0,5) &&
+        finite(d.closeFee,0,5) &&
+        finite(d.slippage,0,10) &&
+        finite(d.buffer,0,500) &&
+        d.stop<100 && d.side in ['long','short'] && integer(d.splitCount,1,1000) &&
+        integer(d.leverage,1,100) && integer(d.maxLeverage,1,100); }
+    function validRaw(d) { return keys(d,["entry","capital","risk","stop","rr","splitCount","mmr","maxLeverage","openFee","closeFee","slippage","buffer","leverage","side","stop-price","loss-budget"]) && str(d['entry'],1,100) && str(d['capital'],1,100) && str(d['risk'],1,100) && str(d['stop'],1,100) && str(d['rr'],1,100) && str(d['splitCount'],1,100) && str(d['mmr'],1,100) && str(d['maxLeverage'],1,100) && str(d['openFee'],1,100) && str(d['closeFee'],1,100) && str(d['slippage'],1,100) && str(d['buffer'],1,100) && str(d['leverage'],1,100) && str(d['side'],1,100) && str(d['stop-price'],1,100) && str(d['loss-budget'],1,100); }
+    function validResult(d) { return keys(d,["entry","capital","risk","stop","rr","splitCount","mmr","maxLeverage","openFee","closeFee","slippage","buffer","leverage","side","maxAllowed","contractLeverageOk","sign","stopPrice","takePrice","stopFill","takeFill","liquidation","lossRate","profitRate","budget","targetNotional","notional","margin","plannedLoss","plannedProfit","netRR","rrOk","netRROk","maxParts","cap","parts","capPct","capped","quantity","openCost","cashRequired","liquidationOutside","liquidationDistance","requiredDistance","gap","ready"]) &&
+        finite(d.entry,-1e100,1e100) && finite(d.capital,-1e100,1e100) && finite(d.risk,-1e100,1e100) && finite(d.stop,-1e100,1e100) && finite(d.rr,-1e100,1e100) && finite(d.splitCount,-1e100,1e100) && finite(d.mmr,-1e100,1e100) && finite(d.maxLeverage,-1e100,1e100) && finite(d.openFee,-1e100,1e100) && finite(d.closeFee,-1e100,1e100) && finite(d.slippage,-1e100,1e100) && finite(d.buffer,-1e100,1e100) && finite(d.leverage,-1e100,1e100) && d.side in ['long','short'] && finite(d.maxAllowed,-1e100,1e100) && d.contractLeverageOk is bool && finite(d.sign,-1e100,1e100) && finite(d.stopPrice,-1e100,1e100) && finite(d.takePrice,-1e100,1e100) && finite(d.stopFill,-1e100,1e100) && finite(d.takeFill,-1e100,1e100) && finite(d.liquidation,-1e100,1e100) && finite(d.lossRate,-1e100,1e100) && finite(d.profitRate,-1e100,1e100) && finite(d.budget,-1e100,1e100) && finite(d.targetNotional,-1e100,1e100) && finite(d.notional,-1e100,1e100) && finite(d.margin,-1e100,1e100) && finite(d.plannedLoss,-1e100,1e100) && finite(d.plannedProfit,-1e100,1e100) && finite(d.netRR,-1e100,1e100) && d.rrOk is bool && d.netRROk is bool && finite(d.maxParts,-1e100,1e100) && finite(d.cap,-1e100,1e100) && finite(d.parts,-1e100,1e100) && finite(d.capPct,-1e100,1e100) && d.capped is bool && finite(d.quantity,-1e100,1e100) && finite(d.openCost,-1e100,1e100) && finite(d.cashRequired,-1e100,1e100) && d.liquidationOutside is bool && finite(d.liquidationDistance,-1e100,1e100) && finite(d.requiredDistance,-1e100,1e100) && finite(d.gap,-1e100,1e100) && d.ready is bool; }
+    function validSnapshot(d) {
+      return keys(d,['inputs','result','raw','stopPriceInput','lossBudgetInput','stopDriver','budgetDriver','symbol','timeframeMinutes','timeframeOption','calculatorVersion']) &&
+        validInputs(d.inputs) && validResult(d.result) && validRaw(d.raw) &&
+        d.result.entry==d.inputs.entry && d.result.capital==d.inputs.capital && d.result.risk==d.inputs.risk && d.result.stop==d.inputs.stop && d.result.rr==d.inputs.rr && d.result.splitCount==d.inputs.splitCount && d.result.mmr==d.inputs.mmr && d.result.maxLeverage==d.inputs.maxLeverage && d.result.openFee==d.inputs.openFee && d.result.closeFee==d.inputs.closeFee && d.result.slippage==d.inputs.slippage && d.result.buffer==d.inputs.buffer && d.result.leverage==d.inputs.leverage && d.result.side==d.inputs.side &&
+        d.result.ready==true && d.result.rrOk==true && d.result.liquidationOutside==true && d.result.contractLeverageOk==true &&
+        finite(d.stopPriceInput,0,1e12) && d.stopPriceInput>0 && finite(d.lossBudgetInput,0,1e12) && d.lossBudgetInput>0 &&
+        d.stopDriver in ['percent','price'] && d.budgetDriver in ['risk','amount'] &&
+        str(d.symbol,11,30) && d.symbol.matches('^[A-Z0-9]{1,20}-USDT-SWAP$') &&
+        integer(d.timeframeMinutes,1,9007199254740991) &&
+        (d.timeframeOption=='other' ||
+          (d.timeframeOption=='3' && d.timeframeMinutes==3) || (d.timeframeOption=='5' && d.timeframeMinutes==5) ||
+          (d.timeframeOption=='15' && d.timeframeMinutes==15) || (d.timeframeOption=='30' && d.timeframeMinutes==30) ||
+          (d.timeframeOption=='60' && d.timeframeMinutes==60) || (d.timeframeOption=='240' && d.timeframeMinutes==240) ||
+          (d.timeframeOption=='1440' && d.timeframeMinutes==1440)) &&
+        d.calculatorVersion=='sha256:9a2e2908f4386b536e6d256e7b9d0cdac2b1e86a08aa5eb915bae4aa697db850';
+    }
+    function validActual(d) {
+      return keys(d,['price','quantity','openingFee','funding','margin','leverage','openedAt']) &&
+        finite(d.price,0,1e12) && d.price>0 && finite(d.quantity,0,1e12) && d.quantity>0 &&
+        finite(d.openingFee,-1e12,1e12) && finite(d.funding,-1e12,1e12) &&
+        finite(d.margin,0,1e12) && d.margin>0 && integer(d.leverage,1,100) && clientTime(d.openedAt);
+    }
+    function validTotals(d) {
+      return keys(d,['quantity','gross','fees','count']) && finite(d.quantity,0,1e12) &&
+        finite(d.gross,-1e30,1e30) && finite(d.fees,-1e30,1e30) && integer(d.count,0,1000000);
+    }
+    function validTrade(d,uid) {
+      return keys(d,['schemaVersion','appVersion','ownerUid','createdAt','updatedAt','authTime','clientSavedAt','editStartedAt',
+        'clientEditedAt','timeZone','original','current','strategy','notes','actual','totals','status','trashed','deletedAt','revision','mutationId']) &&
+        d.schemaVersion==1 && d.appVersion=='journal-v1' && d.ownerUid==uid &&
+        d.createdAt is timestamp && d.updatedAt==request.time && integer(d.authTime,1,99999999999) &&
+        clientTime(d.clientSavedAt) && clientTime(d.editStartedAt) && clientTime(d.clientEditedAt) &&
+        d.editStartedAt<=d.clientEditedAt && d.clientEditedAt<=d.clientSavedAt && str(d.timeZone,1,100) &&
+        validSnapshot(d.current) && str(d.strategy,0,120) && str(d.notes,0,4000) &&
+        validTotals(d.totals) && d.trashed is bool && (d.trashed? d.deletedAt is timestamp : d.deletedAt==null) &&
+        integer(d.revision,0,1000000) && str(d.mutationId,20,64) && d.mutationId.matches('^[A-Za-z0-9-]+$') &&
+        ((d.actual==null && d.status in ['planned','cancelled'] && d.totals=={'quantity':0,'gross':0,'fees':0,'count':0}) ||
+         (validActual(d.actual) && d.totals.quantity<=d.actual.quantity &&
+          ((d.status=='open' && d.totals.quantity==0) ||
+           (d.status=='partial' && d.totals.quantity>0 && d.totals.quantity<d.actual.quantity) ||
+           (d.status=='closed' && d.totals.quantity==d.actual.quantity))));
+    }
+    function validClose(d) {
+      return keys(d,['price','quantity','fee','executedAt','reason','note','deleted','createdAt','updatedAt','mutationId']) &&
+        finite(d.price,0,1e12) && d.price>0 && finite(d.quantity,0,1e12) && d.quantity>0 &&
+        finite(d.fee,-1e12,1e12) && clientTime(d.executedAt) && str(d.reason,1,120) && str(d.note,0,2000) &&
+        d.deleted is bool && d.createdAt is timestamp && d.updatedAt==request.time && str(d.mutationId,20,64);
+    }
+    function revisionAfter(uid,id,d) {
+      let path=/databases/$(database)/documents/users/$(uid)/trades/$(id)/revisions/$(d.mutationId);
+      return !exists(path) && getAfter(path).data.record==d && getAfter(path).data.at==request.time;
+    }
+
+    function closeQuantity(d) { return d.deleted ? 0 : d.quantity; }
+    function closeFee(d) { return d.deleted ? 0 : d.fee; }
+    function closeCount(d) { return d.deleted ? 0 : 1; }
+    function closeGross(d,a,side) { return (side=='long'?1:-1)*(d.price-a.price)*closeQuantity(d); }
+    function near(a,b) { return math.abs(a-b)<=1e-10*(math.abs(a)+math.abs(b)+1e-100); }
+    function totalsDelta(uid,id,d) {
+      let rev=getAfter(/databases/$(database)/documents/users/$(uid)/trades/$(id)/revisions/$(d.mutationId)).data;
+      let path=/databases/$(database)/documents/users/$(uid)/trades/$(id)/closes/$(rev.closeId);
+      let old=exists(path)?get(path).data:{'deleted':true,'quantity':0,'fee':0,'price':0};
+      let next=rev.close;
+      let previous=resource.data.totals;
+      return rev.closeId!='' && next!=null && d.actual!=null &&
+        near(d.totals.quantity,previous.quantity+closeQuantity(next)-closeQuantity(old)) &&
+        math.abs(d.totals.fees-(previous.fees+closeFee(next)-closeFee(old)))<1e-7 &&
+        d.totals.count==previous.count+closeCount(next)-closeCount(old) &&
+        math.abs(d.totals.gross-(previous.gross+closeGross(next,d.actual,d.current.inputs.side)-closeGross(old,d.actual,d.current.inputs.side)))<
+          1e-7+1e-12*math.abs(d.totals.gross);
+    }
+    function validTotalsChange(uid,id,d) {
+      let before=resource.data;
+      return (d.actual==before.actual && (d.totals==before.totals || totalsDelta(uid,id,d))) ||
+        (d.actual!=before.actual && d.actual!=null &&
+          d.totals.quantity==before.totals.quantity && d.totals.fees==before.totals.fees && d.totals.count==before.totals.count &&
+          (before.actual==null?d.totals.gross==0:
+            math.abs(d.totals.gross-(before.totals.gross+(d.current.inputs.side=='long'?1:-1)*(before.actual.price-d.actual.price)*d.totals.quantity))<
+              1e-7+1e-12*math.abs(d.totals.gross)));
+    }
+
+    function immutableTrade() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(
+        ['schemaVersion','appVersion','ownerUid','createdAt','authTime','clientSavedAt','editStartedAt','clientEditedAt','timeZone','original']);
+    }
+    function validRevision(d,uid,id,op) {
+      let parent=getAfter(/databases/$(database)/documents/users/$(uid)/trades/$(id)).data;
+      return keys(d,['record','at','authTime','closeId','close']) && d.at==request.time &&
+        d.authTime==request.auth.token.auth_time && d.record==parent && parent.mutationId==op &&
+        ((d.closeId=='' && d.close==null) ||
+         (str(d.closeId,20,64) && validClose(d.close) &&
+          d.close==getAfter(/databases/$(database)/documents/users/$(uid)/trades/$(id)/closes/$(d.closeId)).data));
+    }
+    function closeParent(uid,id,cid,d) {
+      let before=get(/databases/$(database)/documents/users/$(uid)/trades/$(id)).data;
+      let after=getAfter(/databases/$(database)/documents/users/$(uid)/trades/$(id)).data;
+      let rev=getAfter(/databases/$(database)/documents/users/$(uid)/trades/$(id)/revisions/$(d.mutationId)).data;
+      return !before.trashed && !after.trashed && after.actual!=null &&
+        d.executedAt>=after.actual.openedAt && after.revision==before.revision+1 &&
+        after.mutationId==d.mutationId && rev.closeId==cid && rev.close==d;
+    }
+    match /journalAccess/{uid} {
+      allow get: if isOwner(uid);
+      allow list,create,update,delete: if false;
+    }
+    match /users/{uid}/trades/{id} {
+      allow read: if permitted(uid);
+      allow create: if permitted(uid) && validTrade(request.resource.data,uid) &&
+        request.resource.data.current==request.resource.data.original &&
+        request.resource.data.createdAt==request.time && request.resource.data.authTime==request.auth.token.auth_time &&
+        request.resource.data.revision==0 && request.resource.data.status=='planned' &&
+        request.resource.data.actual==null && !request.resource.data.trashed &&
+        revisionAfter(uid,id,request.resource.data);
+      allow update: if permitted(uid) && validTrade(request.resource.data,uid) && immutableTrade() && validTotalsChange(uid,id,request.resource.data) &&
+        request.resource.data.revision==resource.data.revision+1 &&
+        (resource.data.actual==null || request.resource.data.current==resource.data.current) &&
+        (!resource.data.trashed || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['trashed','deletedAt','updatedAt','revision','mutationId'])) &&
+        (request.resource.data.trashed==resource.data.trashed ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['trashed','deletedAt','updatedAt','revision','mutationId']) &&
+           (!request.resource.data.trashed || request.resource.data.deletedAt==request.time))) &&
+        revisionAfter(uid,id,request.resource.data);
+      allow delete: if false;
+      match /closes/{cid} {
+        allow read: if permitted(uid) && exists(/databases/$(database)/documents/users/$(uid)/trades/$(id));
+        allow create: if permitted(uid) && validClose(request.resource.data) &&
+          request.resource.data.createdAt==request.time && closeParent(uid,id,cid,request.resource.data);
+        allow update: if permitted(uid) && validClose(request.resource.data) &&
+          request.resource.data.createdAt==resource.data.createdAt && closeParent(uid,id,cid,request.resource.data);
+        allow delete: if false;
+      }
+      match /revisions/{op} {
+        allow read: if permitted(uid) && exists(/databases/$(database)/documents/users/$(uid)/trades/$(id));
+        allow create: if permitted(uid) && validRevision(request.resource.data,uid,id,op);
+        allow update,delete: if false;
+      }
+    }
+    match /{document=**} { allow read,write: if false; }
+  }
+}

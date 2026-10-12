@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0c1017"><title>紀錄管理 · 開單風險試算</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="journal.css"><script src="journal-core.js" defer></script><script type="module" src="journal-ui.js"></script></head>
+<body><main class="shell"><header class="masthead"><a class="brand" href="./"><span class="brand-mark" aria-hidden="true">R</span>開單風險試算</a><a class="j-button subtle" href="./">返回試算</a></header>
+<div class="intro"><p class="eyebrow">PRIVATE TRADE JOURNAL</p><h1>紀錄管理</h1><p>把每次計畫、成交與分批平倉，留成可回顧的紀錄。</p></div>
+<section class="journal-auth panel" aria-label="交易日誌登入"><div><strong>私人交易日誌</strong><p id="auth-status" role="status">正在準備 Google 登入…</p><p id="auth-uid" class="help" hidden></p></div><div class="journal-actions"><button id="google-login" class="j-button" type="button" disabled>Google 登入</button><button id="google-logout" class="j-button subtle" type="button" hidden>登出</button><a class="j-button subtle" href="journal.html">紀錄管理</a></div></section>
+<div id="journal-workspace" hidden>
+<section class="panel journal-panel"><div class="section-heading"><h2>交易紀錄</h2><a class="j-button primary" href="./?new=1">＋ 新增試算</a></div>
+<div class="journal-actions"><button class="j-button" id="show-active" type="button" aria-pressed="true">交易紀錄</button><button class="j-button subtle" id="show-trash" type="button" aria-pressed="false">垃圾桶</button><button class="j-button subtle" id="reload-records" type="button">重新載入</button></div>
+<details class="journal-filters"><summary>篩選已載入紀錄</summary><div class="j-grid">
+<label>幣種<input id="filter-symbol" type="search" placeholder="BTC"></label>
+<label>方向<select id="filter-side"><option value="">全部</option><option value="long">做多</option><option value="short">做空</option></select></label>
+<label>狀態<select id="filter-status"><option value="">全部</option><option value="planned">未成交試算</option><option value="open">持倉中</option><option value="partial">部分平倉</option><option value="closed">已全部平倉</option><option value="cancelled">已取消</option></select></label>
+<label>週期（分鐘）<input id="filter-timeframe" type="number" min="1" step="1" placeholder="全部"></label>
+<label>保存日期起（台北）<input id="filter-from" type="date"></label><label>保存日期迄（台北）<input id="filter-to" type="date"></label>
+</div></details>
+<p id="list-status" role="status"></p><div id="record-list" class="record-list"></div>
+<div class="journal-actions"><button id="load-more" class="j-button" type="button" hidden>載入更多</button><button id="load-all" class="j-button subtle" type="button">載入全部以統計</button><button id="export-csv" class="j-button subtle" type="button">下載篩選結果 CSV</button><button id="export-json" class="j-button subtle" type="button">下載篩選結果 JSON</button></div>
+</section>
+<section class="panel journal-panel"><p class="eyebrow">REALIZED PERFORMANCE</p><h2>已平倉績效</h2><p class="help">依目前已載入且符合篩選的完整平倉紀錄計算；部分平倉、試算、取消及垃圾桶紀錄不列入。打平計入總筆數、不計為獲利。</p><div id="performance" class="j-stats"></div></section>
+<section id="trade-detail" class="panel journal-panel" hidden aria-labelledby="detail-title"></section>
+</div>
+<footer><span>原始試算保留，實際成交另行記錄。</span><span>USDT 永續 · 逐倉 · 手動交易日誌</span></footer></main></body></html>

@@ -1,0 +1,11 @@
+{
+  "name": "okx-journal-verification",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "firebase": "13.0.0",
+    "@firebase/rules-unit-testing": "latest",
+    "firebase-tools": "latest",
+    "@playwright/test": "1.64.0"
+  }
+}
