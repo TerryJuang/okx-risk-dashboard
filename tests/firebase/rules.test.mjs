@@ -42,7 +42,7 @@ beforeEach(async()=>{
  await env.clearFirestore();alice=env.authenticatedContext('alice',claims).firestore();bob=env.authenticatedContext('bob',claims).firestore();unknown=env.authenticatedContext('unknown',claims).firestore();
  await env.withSecurityRulesDisabled(async context=>{await setDoc(doc(context.firestore(),'journalAccess','alice'),{enabled:true});await setDoc(doc(context.firestore(),'journalAccess','bob'),{enabled:true});});
 });
-after(async()=>{await env.cleanup();});
+after(async()=>{await env?.cleanup();});
 test('valid atomic creation, own read and production list query succeed',async()=>{
  const id=await assertSucceeds(create());
  await assertSucceeds(getDoc(ref(alice,id)));

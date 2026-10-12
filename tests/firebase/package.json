@@ -4,8 +4,8 @@
   "type": "module",
   "devDependencies": {
     "firebase": "13.0.0",
-    "@firebase/rules-unit-testing": "latest",
-    "firebase-tools": "latest",
+    "@firebase/rules-unit-testing": "6.0.0",
+    "firebase-tools": "15.33.0",
     "@playwright/test": "1.64.0"
   }
 }
