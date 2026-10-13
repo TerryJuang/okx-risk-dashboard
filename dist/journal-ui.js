@@ -3,8 +3,8 @@ const core=globalThis.RiskJournal;
 const isManager=!!$('journal-workspace');
 let api,allowed=false,epoch=0,busy=false,rows=[],cursor=null,more=false,trash=false,selected=null,editing=null,detailEpoch=0;
 const labels={planned:'未成交試算',open:'持倉中',partial:'部分平倉',closed:'已全部平倉',cancelled:'已取消'};
-const money=n=>Number.isFinite(n)?new Intl.NumberFormat('zh-TW',{minimumFractionDigits:3,maximumFractionDigits:3}).format(n):'—';
-const qty=n=>Number.isFinite(n)?new Intl.NumberFormat('zh-TW',{maximumSignificantDigits:12}).format(n):'—';
+const money=n=>Number.isFinite(n)?new Intl.NumberFormat('zh-TW',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n):'—';
+const qty=n=>Number.isFinite(n)?new Intl.NumberFormat('zh-TW',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n):'—';
 const ms=value=>value?.toMillis?value.toMillis():typeof value==='number'?value:Date.parse(value);
 const date=value=>value?new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',dateStyle:'short',timeStyle:'medium'}).format(ms(value)):'—';
 const local=value=>value?new Date(ms(value)+8*3600000).toISOString().slice(0,19):'';
@@ -58,8 +58,8 @@ function paintList(){
   message('list-status','已載入 '+rows.length+' 筆，篩選後 '+visible.length+' 筆'+(more?'；尚有更多紀錄。':'。'));
   $('load-more').hidden=!more;
   const p=core.performance(visible),stats=$('performance');stats.replaceChildren();
-  const metrics=[['完成交易',p.count+' 筆'],['淨損益',money(p.net)+' U'],['勝率',p.winRate===null?'—':(p.winRate*100).toFixed(1)+'%'],
-    ['平均獲利',money(p.averageWin)+' U'],['平均虧損',money(p.averageLoss)+' U'],['Profit Factor',p.profitFactor===null?'—（無虧損）':p.profitFactor.toFixed(2)],['平均實際 R',p.averageR===null?'—':p.averageR.toFixed(3)+' R']];
+  const metrics=[['完成交易',p.count+' 筆'],['淨損益',money(p.net)+' U'],['勝率',p.winRate===null?'—':money(p.winRate*100)+'%'],
+    ['平均獲利',money(p.averageWin)+' U'],['平均虧損',money(p.averageLoss)+' U'],['Profit Factor',p.profitFactor===null?'—（無虧損）':p.profitFactor.toFixed(2)],['平均實際 R',p.averageR===null?'—':money(p.averageR)+' R']];
   for(const [label,value]of metrics){const cell=element('div',undefined,'j-stat');cell.append(element('span',label),element('strong',value));stats.append(cell);}
 }
 async function reloadList(append=false) {

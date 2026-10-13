@@ -56,6 +56,17 @@ test('valid atomic creation, own read and production list query succeed',async()
  await assertSucceeds(getDocs(query(collection(alice,'users','alice','trades'),where('trashed','==',false),orderBy('createdAt','desc'),limit(25))));
  const stored=(await getDoc(ref(alice,id))).data();assert.ok(stored.createdAt instanceof Timestamp);
 });
+
+test('RR reference does not block approved owner saves; boolean types still validate',async()=>{
+ for(const side of ['long','short']) for(const rr of [.5,1,1.000001,1.5036]) {
+  const b={...bridge,inputs:{...inputs,side,rr},raw:{...bridge.raw,side,rr:String(rr)}};
+  const s=C.snapshot(b,{symbol:'BTC',timeframeOption:'15'},calculate);
+  const id=await assertSucceeds(create(alice,{current:s,original:s}));
+  assert.equal((await getDoc(ref(alice,id))).data().current.inputs.rr,rr);
+ }
+ const s=snapshot();s.result.rrOk='false';
+ await assertFails(create(alice,{current:s,original:s}));
+});
 test('unauthenticated get and list, unknown UID, non-Google and unverified accounts are denied',async()=>{
  const id=await create(),guest=env.unauthenticatedContext().firestore();
  await assertFails(getDoc(ref(guest,id)));await assertFails(getDocs(collection(guest,'users','alice','trades')));

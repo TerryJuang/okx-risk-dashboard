@@ -11,11 +11,13 @@ test('No-cost example: 500 U, risk 2%, stop 2%, RR 3, 20x',()=>{
  assert.equal(r.stopPrice,2450);assert.equal(r.takePrice,2650);
  assert.equal(r.plannedLoss,10);assert.equal(r.plannedProfit,30);
 });
-test('Long and short RR gates include exact boundary',()=>{
- assert.equal(calculate({...base,rr:2}).rrOk,false);
- assert.equal(calculate({...base,rr:2.000001}).rrOk,true);
+test('Both directions use strict RR > 1 as a non-blocking reference',()=>{
+ for(const side of ['long','short']) for(const rr of [.5,1,1.000001,1.5036]) {
+  const r=calculate({...base,side,rr});
+  assert.equal(r.rrOk,rr>1);assert.equal(r.ready,true);
+ }
  const s=calculate({...base,side:'short',rr:1});
- assert.equal(s.rrOk,true);assert.equal(s.stopPrice,2550);assert.equal(s.takePrice,2450);
+ assert.equal(s.rrOk,false);assert.equal(s.stopPrice,2550);assert.equal(s.takePrice,2450);
  assert.equal(calculate({...base,side:'short',rr:.999999}).rrOk,false);
  assert.equal(s.netRROk,false); // Cost must not be mistaken for price RR.
 });
@@ -175,21 +177,27 @@ test('EXIT MAP places both directions on a vertical linear price axis, including
   assert.equal(p.nodes.get('map-empty').hidden,true);
  }
 });
-test('Exit summary, three-decimal profit/loss and stop help follow the current calculation',()=>{
+test('Displayed results round to two decimals while calculations retain precision',()=>{
  const p=makePage();
  const format=(n,digits)=>new Intl.NumberFormat('zh-TW',{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(n);
  for(const side of ['long','short']) {
   const r=p.tool().execute({capital:500,risk:2,entry:2500,side,leverage:20});
-  assert.equal(p.nodes.get('planned-loss').textContent,format(r.plannedLoss,3));
-  assert.equal(p.nodes.get('planned-profit').textContent,format(r.plannedProfit,3));
+  assert.equal(p.nodes.get('planned-loss').textContent,format(r.plannedLoss,2));
+  assert.equal(p.nodes.get('planned-profit').textContent,format(r.plannedProfit,2));
   assert.equal(p.nodes.get('exit-margin').textContent,format(r.margin,2));
-  assert.equal(p.nodes.get('exit-leverage').textContent,'20×');
+  assert.equal(p.nodes.get('exit-leverage').textContent,'20.00×');
   const stopRow=p.nodes.get('price-map').children.find(el=>el.className==='price-row stop');
   const trigger=stopRow.children[1].children[1].children[0];
   assert.equal(trigger.attrs['aria-describedby'],'liquidation-gap');
   assert.match(p.nodes.get('liquidation-gap').textContent,/停損至預估強平差距/);
-  assert.ok(p.nodes.get('liquidation-gap').textContent.includes(format(r.liquidationDistance*100,3)));
+  assert.ok(p.nodes.get('liquidation-gap').textContent.includes(format(r.liquidationDistance*100,2)));
  }
+ const r=p.tool().execute({capital:500,risk:2,entry:2500.123456,rr:1.5036});
+ assert.equal(p.nodes.get('entry').value,'2500.123456');
+ assert.equal(p.nodes.get('rr').value,'1.5036');
+ assert.equal(p.nodes.get('rr-result').textContent,format(1.5036,2)+' / '+format(r.netRR,2));
+ assert.equal(p.nodes.get('liquidation-result').textContent,format(r.liquidation,2));
+ assert.ok(p.nodes.get('checks').children.every(el=>!el.textContent.includes('RR')));
  p.edit('entry','');
  for(const id of ['exit-margin','exit-leverage','planned-loss','planned-profit','liquidation-gap']) assert.equal(p.nodes.get(id).textContent,'—');
 });

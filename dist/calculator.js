@@ -37,12 +37,12 @@ function calculate(v) {
   const maxParts=Math.min(3,v.splitCount), cap=v.capital*maxParts/v.splitCount;
   const notional=Math.floor(Math.min(targetNotional,cap*leverage,v.capital/(1/leverage+fo))*100)/100;
   const margin=notional/leverage, plannedLoss=notional*lossRate, plannedProfit=notional*profitRate;
-  const rrOk=v.side==='long'?v.rr>2:v.rr>=1;
-  const netRR=profitRate/lossRate, netRROk=v.side==='long'?netRR>2:netRR>=1;
+  const rrOk=v.rr>1;
+  const netRR=profitRate/lossRate, netRROk=netRR>1;
   return {...v,leverage,maxAllowed,contractLeverageOk,sign,stopPrice,takePrice,stopFill,takeFill,liquidation,lossRate,profitRate,budget,targetNotional,notional,margin,plannedLoss,plannedProfit,netRR,rrOk,netRROk,
     maxParts,cap,parts:margin/v.capital*v.splitCount,capPct:maxParts/v.splitCount*100,capped:targetNotional>cap*leverage+1e-9,
     quantity:notional/v.entry,openCost:notional*fo,cashRequired:margin+notional*fo,
     liquidationOutside,liquidationDistance,requiredDistance,
-    gap:sign*(stopPrice-liquidation),ready:rrOk && liquidationOutside && contractLeverageOk && notional>0};
+    gap:sign*(stopPrice-liquidation),ready:liquidationOutside && contractLeverageOk && notional>0};
 }
 if (typeof module !== 'undefined') module.exports={calculate};

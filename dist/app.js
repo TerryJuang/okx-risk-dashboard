@@ -2,9 +2,9 @@
 const $=id=>document.getElementById(id);
 const fieldIds={entry:'entry',capital:'capital',risk:'risk',stop:'stop',rr:'rr',splitCount:'split-count',mmr:'mmr',maxLeverage:'max-leverage',openFee:'open-fee',closeFee:'close-fee',slippage:'slippage',buffer:'buffer',leverage:'leverage'};
 const number=id=>$(id).value.trim()===''?NaN:Number($(id).value);
-const fmt=(n,digits=2)=>new Intl.NumberFormat('zh-TW',{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(n);
-const compact=n=>new Intl.NumberFormat('zh-TW',{maximumFractionDigits:8}).format(n);
-const price=n=>n===0?'0':new Intl.NumberFormat('zh-TW',{maximumSignificantDigits:10}).format(n);
+const fmt=n=>new Intl.NumberFormat('zh-TW',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+const compact=fmt;
+const price=fmt;
 const clean=n=>Number.isFinite(n)?String(Number(n.toPrecision(12))):'';
 let side='long', stopDriver='percent', budgetDriver='risk';
 const readValues=()=>({...Object.fromEntries(Object.entries(fieldIds).map(([key,id])=>[key,number(id)])),side});
@@ -45,12 +45,12 @@ function renderBars(r) {
     bar.style.width=`${percent}%`;$('funding-bar').appendChild(bar);
     const item=document.createElement('div');item.className=`funding-item ${segment.kind}`;
     const label=document.createElement('span');label.textContent=segment.name;
-    const amount=document.createElement('strong');amount.textContent=fmt(segment.value,segment.kind==='fee'?4:2)+' U';
+    const amount=document.createElement('strong');amount.textContent=fmt(segment.value)+' U';
     const share=document.createElement('small');share.textContent=fmt(percent,2)+'%';
     item.append(label,amount,share);$('funding-metrics').appendChild(item);
   });
-  $('funding-bar').setAttribute('aria-label',segments.map(s=>`${s.name} ${fmt(s.value,4)} USDT，占 ${fmt(s.value/r.capital*100)}%`).join('；'));
-  $('funding-risk').textContent=`單筆虧損預算 ${compact(r.budget)} U；停損預估虧損 ${fmt(r.plannedLoss,4)} U（含成本），不與保證金重複加總。`;
+  $('funding-bar').setAttribute('aria-label',segments.map(s=>`${s.name} ${fmt(s.value)} USDT，占 ${fmt(s.value/r.capital*100)}%`).join('；'));
+  $('funding-risk').textContent=`單筆虧損預算 ${compact(r.budget)} U；停損預估虧損 ${fmt(r.plannedLoss)} U（含成本），不與保證金重複加總。`;
 }
 function renderPriceAxis(rows,r) {
   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
@@ -104,7 +104,7 @@ function renderMap(r) {
   });
   $('price-map').setAttribute('aria-label',rows.map(x=>`${x.name} ${price(x.value)} USDT`).join('，'));
   $('price-title').textContent=`${r.side==='long'?'做多':'做空'} · 出場價位（USDT）`;
-  $('liquidation-gap').textContent=`停損至預估強平差距 ${price(r.gap)} USDT（入場價的 ${fmt(r.gap/r.entry*100,3)}%）。強平距離 ${fmt(r.liquidationDistance*100,3)}%，要求嚴格大於停損＋滑價＋緩衝 ${fmt(r.requiredDistance*100,3)}%。`;
+  $('liquidation-gap').textContent=`停損至預估強平差距 ${price(r.gap)} USDT（入場價的 ${fmt(r.gap/r.entry*100,3)}%）。強平距離 ${fmt(r.liquidationDistance*100)}%，要求嚴格大於停損＋滑價＋緩衝 ${fmt(r.requiredDistance*100)}%。`;
 }
 function render() {
   let r;
@@ -132,30 +132,29 @@ function render() {
     return null;
   }
   $('input-error').hidden=true;
-  $('leverage-value').textContent=r.leverage;
+  $('leverage-value').textContent=fmt(r.leverage);
   $('leverage').setAttribute('aria-valuetext',`${r.leverage} 倍，可選 1 至 100 倍，符合目前條件的上限 ${r.maxAllowed} 倍`);
   $('leverage-guidance').textContent=r.maxAllowed?`符合目前停損、滑價、緩衝及合約上限的槓桿：1–${r.maxAllowed} 倍。`:'目前 1–100 倍皆無法同時符合停損、緩衝與合約上限。';
   $('result-badge').textContent=r.ready?'符合試算條件 · 待核對 OKX':'未符合開單條件';
   $('result-badge').classList.toggle('capped',!r.ready);
-  const outputs={notional:fmt(r.notional),margin:fmt(r.margin),'equation-leverage':r.leverage+'×','equation-notional':fmt(r.notional),
-    'planned-loss':fmt(r.plannedLoss,3),'planned-profit':fmt(r.plannedProfit,3),'rr-result':`${compact(r.rr)} / ${fmt(r.netRR,3)}`,'liquidation-result':price(r.liquidation),
-    'exit-margin':fmt(r.margin),'exit-leverage':r.leverage+'×',
+  const outputs={notional:fmt(r.notional),margin:fmt(r.margin),'equation-leverage':fmt(r.leverage)+'×','equation-notional':fmt(r.notional),
+    'planned-loss':fmt(r.plannedLoss),'planned-profit':fmt(r.plannedProfit),'rr-result':`${compact(r.rr)} / ${fmt(r.netRR)}`,'liquidation-result':price(r.liquidation),
+    'exit-margin':fmt(r.margin),'exit-leverage':fmt(r.leverage)+'×',
     'budget-equation':`${compact(r.capital)} × ${compact(r.risk)}% = ${compact(r.budget)} U`,
-    'notional-equation':`${compact(r.budget)} ÷ ${fmt(r.lossRate*100,5)}% ≈ ${fmt(r.targetNotional)} U（上限前）`,
+    'notional-equation':`${compact(r.budget)} ÷ ${fmt(r.lossRate*100)}% ≈ ${fmt(r.targetNotional)} U（上限前）`,
     'margin-equation':`${fmt(r.notional)} ÷ ${r.leverage} ≈ ${fmt(r.margin)} U`};
   Object.entries(outputs).forEach(([id,value])=>$(id).textContent=value);
   $('amount-caption').textContent=`虧損預算 ${compact(r.budget)} U · 交易額以 0.01 U 向下取整${r.capped?' · 已縮小至資金切分上限':''}`;
   $('parts-label').textContent=`${fmt(r.parts)} / ${r.maxParts} 份上限`;
-  $('cap-note').textContent=`每份 ${fmt(r.capital/r.splitCount)} U；保證金上限 ${fmt(r.cap)} U。開倉費另計 ${fmt(r.openCost,4)} U，合計需 ${fmt(r.cashRequired,4)} U。`;
+  $('cap-note').textContent=`每份 ${fmt(r.capital/r.splitCount)} U；保證金上限 ${fmt(r.cap)} U。開倉費另計 ${fmt(r.openCost)} U，合計需 ${fmt(r.cashRequired)} U。`;
   $('split-warning').hidden=r.splitCount>=10;
   $('split-warning').textContent=r.splitCount<10?`目前 ${r.splitCount} 份，低於建議的 10 份；單筆保證金上限提高至總資金 ${compact(r.capPct)}%。`:'';
-  const checks=[{ok:r.rrOk,text:`${r.side==='long'?'做多 RR > 2':'做空 RR ≥ 1'}：${r.rrOk?'符合':'不符合'}`},
-    {ok:r.liquidationOutside,text:r.liquidationOutside?'預估強平在停損、滑價與緩衝之外':r.liquidationDistance<=r.stop/100?'目前槓桿可能在停損前強平，停損損益僅供理論比較':'目前槓桿未保留足夠的滑價與強平緩衝'}];
+  const checks=[{ok:r.liquidationOutside,text:r.liquidationOutside?'預估強平在停損、滑價與緩衝之外':r.liquidationDistance<=r.stop/100?'目前槓桿可能在停損前強平，停損損益僅供理論比較':'目前槓桿未保留足夠的滑價與強平緩衝'}];
   if(!r.contractLeverageOk) checks.push({ok:false,text:`目前 ${r.leverage} 倍超過設定的合約上限 ${r.maxLeverage} 倍。`});
   $('checks').replaceChildren();checks.forEach(check=>{const el=document.createElement('p');el.className=check.ok?'check-ok':'check-bad';el.textContent=(check.ok?'✓ ':'! ')+check.text;$('checks').appendChild(el);});
   const warnings=[];
-  if(r.capped) warnings.push(`原需 ${compact(r.targetNotional/r.leverage)} U 保證金，超過 ${r.maxParts} 份上限。已縮小交易額，實際預估虧損降為 ${fmt(r.plannedLoss,4)} U。`);
-  if(!r.netRROk) warnings.push(`費用後 RR 為 ${fmt(r.netRR,3)}，未達${r.side==='long'?'大於 2':'至少 1'}。即使價格 RR 合格，成本也會吃掉報酬。`);
+  if(r.capped) warnings.push(`原需 ${compact(r.targetNotional/r.leverage)} U 保證金，超過 ${r.maxParts} 份上限。已縮小交易額，實際預估虧損降為 ${fmt(r.plannedLoss)} U。`);
+  if(!r.netRROk) warnings.push(`費用後 RR 為 ${fmt(r.netRR)}，未大於 1.00；成本會吃掉報酬。此提示不限制保存紀錄。`);
   if(r.risk>3) warnings.push(`單筆風險 ${compact(r.risk)}%，高於原教材的 1–3% 範例範圍。`);
   if(r.notional===0) warnings.push('交易額取整後為 0，不能據此下單；請核對最小張數。');
   $('calculation-warning').textContent=warnings.join('\n');$('calculation-warning').hidden=!warnings.length;

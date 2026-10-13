@@ -45,6 +45,10 @@ for(const size of [{width:1440,height:1000},{width:768,height:1024},{width:390,h
   await page.goto('/index.html');
   await expect(page.locator('#auth-status')).toContainText('私人日誌可用');
   await page.locator('#entry').fill('1200');await page.locator('#journal-symbol').fill('ETH');
+  await page.locator('#rr').fill('1.5036');
+  await expect(page.getByLabel('盈虧比 RR',{exact:true})).toHaveValue('1.5036');
+  await expect(page.locator('#checks')).not.toContainText('RR');
+  await expect(page.locator('#rr-result')).toHaveText(/^1\.50 \/ -?\d+\.\d{2}$/);
   await page.locator('#timeframe').selectOption('15');
   await page.locator('#stop-price').fill('1176');await expect(page.locator('#stop')).toHaveValue('2');
   await page.locator('#loss-budget').fill('10');await expect(page.locator('#risk')).toHaveValue('2');
@@ -65,7 +69,7 @@ for(const size of [{width:1440,height:1000},{width:768,height:1024},{width:390,h
   await close('90','7','0.6','超額');await expect(page.locator('#detail-status')).toContainText('不可超過');
   await page.locator('#close-quantity').fill('6');await page.getByRole('button',{name:'保存這次平倉'}).click();
   await expect(page.locator('#detail-title')).toContainText('已全部平倉');
-  await expect(page.locator('#performance')).toContainText('-22.500');
+  await expect(page.locator('#performance')).toContainText('-22.50 U');
   await page.locator('#edit-notes').fill('<img src=x onerror=alert(1)>');await page.getByRole('button',{name:'保存備註'}).click();
   await expect(page.locator('#edit-notes')).toHaveValue('<img src=x onerror=alert(1)>');
   await page.locator('.close-card').first().getByRole('button',{name:'移除此平倉'}).click();

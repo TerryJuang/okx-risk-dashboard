@@ -29,7 +29,7 @@
       lossBudgetInput:number(bridge.raw['loss-budget'],'虧損金額',0,LIMIT,true),
       stopDriver:bridge.stopDriver,budgetDriver:bridge.budgetDriver,symbol:symbol(meta.symbol),
       timeframeMinutes:timeframe(meta.timeframeOption,meta.customTimeframe),timeframeOption:meta.timeframeOption,
-      calculatorVersion:'sha256:9a2e2908f4386b536e6d256e7b9d0cdac2b1e86a08aa5eb915bae4aa697db850'};
+      calculatorVersion:'sha256:9c8cd677c675ba8c474edf62f0c3db99d88d5b5aade32ae69cac6b35976ebcf7'};
   }
   function millis(value) {
     const n=value&&typeof value.toMillis==='function'?value.toMillis():typeof value==='number'?value:Date.parse(value);
