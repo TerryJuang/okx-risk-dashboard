@@ -20,6 +20,14 @@ test('timeframe and symbol validation rejects missing/invalid inputs',()=>{
 test('unready risk calculations cannot be mislabeled as saved ready plans',()=>{
  assert.throws(()=>C.snapshot({...bridge(),inputs:{...base,leverage:100}},{symbol:'BTC',timeframeOption:'3'},calculate));
 });
+
+test('RR reference cannot block saving while liquidation and leverage limits remain',()=>{
+ for(const side of ['long','short']) for(const rr of [.5,1,1.000001,1.5036]) {
+  const b=bridge();b.inputs={...base,side,rr};b.raw={...b.raw,side,rr:String(rr)};
+  const s=C.snapshot(b,{symbol:'BTC',timeframeOption:'3'},calculate);
+  assert.equal(s.inputs.rr,rr);assert.equal(s.result.ready,true);
+ }
+});
 test('long partial closes keep remaining position and charge opening fee exactly once',()=>{
  const a=entry(),first=C.summarizeFills(a,[fill()],'long');
  assert.equal(first.status,'partial');assert.equal(first.remaining,6);near(first.net,38.1);
